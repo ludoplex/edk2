@@ -140,10 +140,11 @@ class EfiSymbols:
             return 'Already Loaded: '
         try:
             res = 'Loading Symbols Failed:'
-            res = gdb.execute('add-symbol-file ' + pecoff.CodeViewPdb +
-                              ' ' + hex(pecoff.TextAddress) +
-                              ' -s .data ' + hex(pecoff.DataAddress),
-                              False, True)
+            res = gdb.execute(
+                f'add-symbol-file {pecoff.CodeViewPdb} {hex(pecoff.TextAddress)} -s .data {hex(pecoff.DataAddress)}',
+                False,
+                True,
+            )
 
             cls.loaded[pecoff.TextAddress] = pecoff
             if cls.verbose:
@@ -167,23 +168,27 @@ class EfiSymbols:
             return f'{pecoff} is already loaded'
 
         pecoff = PeTeImage(cls.file, None)
-        if pecoff.pcToPeCoff(address, cls.stride, cls.range):
-            res = cls.add_symbols_for_pecoff(pecoff)
-            return f'{res}{pecoff}'
-        else:
+        if not pecoff.pcToPeCoff(address, cls.stride, cls.range):
             return f'0x{address:08x} not in a PE/COFF (or TE) image'
+        res = cls.add_symbols_for_pecoff(pecoff)
+        return f'{res}{pecoff}'
 
     @ classmethod
     def address_in_loaded_pecoff(cls, address):
         if not isinstance(address, int):
             address = int(address)
 
-        for value in cls.loaded.values():
-            if (address >= value.LoadAddress and
-                    address <= value.EndLoadAddress):
-                return value
-
-        return None
+        return next(
+            (
+                value
+                for value in cls.loaded.values()
+                if (
+                    address >= value.LoadAddress
+                    and address <= value.EndLoadAddress
+                )
+            ),
+            None,
+        )
 
     @ classmethod
     def unload_symbols(cls, address):
@@ -444,10 +449,7 @@ class EfiGuidCmd (gdb.Command):
 
         else:
             for key, value in GuidNames._dict_.items():
-                if options.verbose:
-                    extra = f'{GuidNames.to_c_guid(key)}: '
-                else:
-                    extra = ''
+                extra = f'{GuidNames.to_c_guid(key)}: ' if options.verbose else ''
                 print(f'{key}: {extra}{value}')
 
 
@@ -575,9 +577,9 @@ class EfiTablesCmd (gdb.Command):
             print('Error: This command requires symbols for gST to be loaded')
             return
 
-        table = EfiConfigurationTable(
-            self.file, int(gST.value(gdb.selected_frame())))
-        if table:
+        if table := EfiConfigurationTable(
+            self.file, int(gST.value(gdb.selected_frame()))
+        ):
             print(table, '\n')
 
 
@@ -722,10 +724,7 @@ class EfiSymbolsCmd (gdb.Command):
         # Skip lowest 256 bytes to avoid interrupt frames
         if address > 0xFF and address < 0x00007FFFFFFFFFFF:
             return True
-        if address >= 0xFFFF800000000000:
-            return True
-
-        return False
+        return address >= 0xFFFF800000000000
 
     def pc_set_for_frames(self):
         '''Return a set for the PC's in the current frame'''
@@ -908,8 +907,6 @@ if bp.pending:
         # Not the emulator so do this when you attach
         gdb.execute('efi symbols --frame --extended', True)
         gdb.execute('bt')
-        # If you want to skip the above commands comment them out
-        pass
     except gdb.error:
         # If you load the script and there is no target ignore the error.
         pass

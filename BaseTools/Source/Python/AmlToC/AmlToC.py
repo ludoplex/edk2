@@ -50,7 +50,9 @@ def ParseArgs():
         with open(Args.InputFile, "rb") as fIn:
             Signature = str(fIn.read(4))
             if ("DSDT" not in Signature) and ("SSDT" not in Signature):
-                EdkLogger.info("Invalid file type. File does not have a valid DSDT or SSDT signature: {}".format(Args.InputFile))
+                EdkLogger.info(
+                    f"Invalid file type. File does not have a valid DSDT or SSDT signature: {Args.InputFile}"
+                )
                 return None
 
     # Get the basename of the input file.
@@ -59,12 +61,13 @@ def ParseArgs():
 
     # If no output directory is specified, output to the input directory.
     if not Args.OutDir:
-        Args.OutputFile = os.path.join(os.path.dirname(Args.InputFile),
-                                       BaseName + ".c")
+        Args.OutputFile = os.path.join(
+            os.path.dirname(Args.InputFile), f"{BaseName}.c"
+        )
     else:
         if not os.path.exists(Args.OutDir):
             os.mkdir(Args.OutDir)
-        Args.OutputFile = os.path.join(Args.OutDir, BaseName + ".c")
+        Args.OutputFile = os.path.join(Args.OutDir, f"{BaseName}.c")
 
     Args.BaseName = BaseName
 
@@ -121,14 +124,13 @@ def Main():
     EdkLogger.Initialize()
 
     try:
-        # Parse the input arguments.
-        CommandArguments = ParseArgs()
-        if not CommandArguments:
+        if CommandArguments := ParseArgs():
+            # Convert an AML file to a .c file containing the AML bytecode stored
+            # in a C array.
+            AmlToC(CommandArguments.InputFile, CommandArguments.OutputFile, CommandArguments.BaseName)
+        else:
             return 1
 
-        # Convert an AML file to a .c file containing the AML bytecode stored
-        # in a C array.
-        AmlToC(CommandArguments.InputFile, CommandArguments.OutputFile, CommandArguments.BaseName)
     except Exception as e:
         print(e)
         return 1

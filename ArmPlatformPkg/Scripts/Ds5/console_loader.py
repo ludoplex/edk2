@@ -17,7 +17,7 @@ def get_module_path(line):
 
 def get_module_entrypoint(list, module_name):
     line = [i for i in list if module_name in i and re.search(r'\b'+module_name+r'\b', i)]
-    if len(line) == 0:
+    if not line:
         # Module was not loaded using DxeDispatcher or PeiDispatcher. It is a SEC module
         # Symbols for these modules are loaded from FV, not from console log
         return None

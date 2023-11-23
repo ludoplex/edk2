@@ -11,6 +11,7 @@
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 ##
 """ This program will update the BuildVersion.py and BuildVersion.h files used to set a tool's version value """
+
 from __future__ import absolute_import
 
 import os
@@ -30,7 +31,7 @@ SVN_REVISION = "$LastChangedRevision: 3 $"
 SVN_REVISION = SVN_REVISION.replace("$LastChangedRevision:", "").replace("$", "").strip()
 __copyright__ = "Copyright (c) 2014, Intel Corporation. All rights reserved."
 VERSION_NUMBER = "0.7.0"
-__version__ = "Version %s.%s" % (VERSION_NUMBER, SVN_REVISION)
+__version__ = f"Version {VERSION_NUMBER}.{SVN_REVISION}"
 
 
 def ParseOptions():
@@ -39,13 +40,15 @@ def ParseOptions():
     The options for this tool will be passed along to the MkBinPkg tool.
     """
     parser = ArgumentParser(
-        usage=("%s [options]" % __execname__),
+        usage=f"{__execname__} [options]",
         description=__copyright__,
-        conflict_handler='resolve')
+        conflict_handler='resolve',
+    )
 
     # Standard Tool Options
-    parser.add_argument("--version", action="version",
-                        version=__execname__ + " " + __version__)
+    parser.add_argument(
+        "--version", action="version", version=f"{__execname__} {__version__}"
+    )
     parser.add_argument("-s", "--silent", action="store_true",
                         dest="silent",
                         help="All output will be disabled, pass/fail determined by the exit code")
@@ -122,15 +125,11 @@ def ShellCommandResults(CmdLine, Opt):
             file_list.close()
 
     if os.path.exists(filename):
-        fd_ = open(filename, 'r')
-        Results = fd_.readlines()
-        fd_.close()
+        with open(filename, 'r') as fd_:
+            Results = fd_.readlines()
         os.unlink(filename)
 
-    if returnValue > 0:
-        return returnValue
-
-    return Results
+    return returnValue if returnValue > 0 else Results
 
 
 def UpdateBuildVersionPython(Rev, UserModified, opts):
@@ -138,16 +137,14 @@ def UpdateBuildVersionPython(Rev, UserModified, opts):
     for SubDir in ["Common", "UPT"]:
         PyPath = os.path.join(os.environ['BASE_TOOLS_PATH'], "Source", "Python", SubDir)
         BuildVersionPy = os.path.join(PyPath, "BuildVersion.py")
-        fd_ = open(os.path.normpath(BuildVersionPy), 'r')
-        contents = fd_.readlines()
-        fd_.close()
+        with open(os.path.normpath(BuildVersionPy), 'r') as fd_:
+            contents = fd_.readlines()
         if opts.HAVE_SVN is False:
             BuildVersionOrig = os.path.join(PyPath, "orig_BuildVersion.py")
-            fd_ = open (BuildVersionOrig, 'w')
-            for line in contents:
-                fd_.write(line)
-            fd_.flush()
-            fd_.close()
+            with open (BuildVersionOrig, 'w') as fd_:
+                for line in contents:
+                    fd_.write(line)
+                fd_.flush()
         new_content = []
         for line in contents:
             if line.strip().startswith("gBUILD_VERSION"):
@@ -158,27 +155,23 @@ def UpdateBuildVersionPython(Rev, UserModified, opts):
                 continue
             new_content.append(line)
 
-        fd_ = open(os.path.normpath(BuildVersionPy), 'w')
-        for line in new_content:
-            fd_.write(line)
-        fd_.close()
+        with open(os.path.normpath(BuildVersionPy), 'w') as fd_:
+            for line in new_content:
+                fd_.write(line)
 
 
 def UpdateBuildVersionH(Rev, UserModified, opts):
     """ This routine will update the BuildVersion.h files in the C source tree """
     CPath = os.path.join(os.environ['BASE_TOOLS_PATH'], "Source", "C", "Include", "Common")
     BuildVersionH = os.path.join(CPath, "BuildVersion.h")
-    fd_ = open(os.path.normpath(BuildVersionH), 'r')
-    contents = fd_.readlines()
-    fd_.close()
+    with open(os.path.normpath(BuildVersionH), 'r') as fd_:
+        contents = fd_.readlines()
     if opts.HAVE_SVN is False:
         BuildVersionOrig = os.path.join(CPath, "orig_BuildVersion.h")
-        fd_ = open(BuildVersionOrig, 'w')
-        for line in contents:
-            fd_.write(line)
-        fd_.flush()
-        fd_.close()
-
+        with open(BuildVersionOrig, 'w') as fd_:
+            for line in contents:
+                fd_.write(line)
+            fd_.flush()
     new_content = []
     for line in contents:
         if line.strip().startswith("#define"):
@@ -190,10 +183,9 @@ def UpdateBuildVersionH(Rev, UserModified, opts):
             continue
         new_content.append(line)
 
-    fd_ = open(os.path.normpath(BuildVersionH), 'w')
-    for line in new_content:
-        fd_.write(line)
-    fd_.close()
+    with open(os.path.normpath(BuildVersionH), 'w') as fd_:
+        for line in new_content:
+            fd_.write(line)
 
 
 def RevertCmd(Filename, Opt):
@@ -285,7 +277,7 @@ def CheckSvn(opts):
         return False
 
     if opts.verbose:
-        sys.stdout.write("Found %s" % contents[0])
+        sys.stdout.write(f"Found {contents[0]}")
         sys.stdout.flush()
     return True
 
@@ -293,14 +285,12 @@ def CheckSvn(opts):
 def CopyOrig(Src, Dest, Opt):
     """ Overwrite the Dest File with the Src File content """
     try:
-        fd_ = open(Src, 'r')
-        contents = fd_.readlines()
-        fd_.close()
-        fd_ = open(Dest, 'w')
-        for line in contents:
-            fd_.write(line)
-        fd_.flush()
-        fd_.close()
+        with open(Src, 'r') as fd_:
+            contents = fd_.readlines()
+        with open(Dest, 'w') as fd_:
+            for line in contents:
+                fd_.write(line)
+            fd_.flush()
     except IOError:
         if not Opt.silent:
             sys.stderr.write("Unable to restore this file: %s\n" % Dest)
@@ -347,9 +337,7 @@ def RevertBuildVersionFiles(opts):
     This routine will attempt to perform an SVN --revert on each of the BuildVersion.* files
     """
     if not opts.HAVE_SVN:
-        if CheckOriginals(opts):
-            return 1
-        return 0
+        return 1 if CheckOriginals(opts) else 0
     # SVN is available
     BuildVersionH = os.path.join(os.environ['BASE_TOOLS_PATH'], "Source", "C", "Include", "Common", "BuildVersion.h")
     RevertCmd(BuildVersionH, opts)
@@ -368,7 +356,9 @@ def UpdateRevisionFiles():
         sys.stderr.write(SYS_ENV_ERR % 'BASE_TOOLS_PATH')
         return 1
     if not os.path.exists(os.environ['BASE_TOOLS_PATH']):
-        sys.stderr.write("Unable to locate the %s directory." % os.environ['BASE_TOOLS_PATH'])
+        sys.stderr.write(
+            f"Unable to locate the {os.environ['BASE_TOOLS_PATH']} directory."
+        )
         return 1
 
 

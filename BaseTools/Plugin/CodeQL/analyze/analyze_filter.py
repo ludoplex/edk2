@@ -70,7 +70,6 @@ def _parse_pattern(line: str) -> Tuple[str]:
         Tuple[str]: The parsed sign, file pattern, and rule pattern from the
                     line.
     """
-    sep_char = ':'
     esc_char = '\\'
     file_pattern = ''
     rule_pattern = ''
@@ -87,20 +86,19 @@ def _parse_pattern(line: str) -> Tuple[str]:
             u_line = line[1:]
 
     i = 0
+    sep_char = ':'
     while i < len(u_line):
         c = u_line[i]
-        i = i + 1
+        i += 1
         if c == sep_char:
             if seen_separator:
-                raise Exception(
-                    'Invalid pattern: "' + line + '" Contains more than one '
-                    'separator!')
+                raise Exception(f'Invalid pattern: "{line}" Contains more than one separator!')
             seen_separator = True
             continue
         elif c == esc_char:
             next_c = u_line[i] if (i < len(u_line)) else None
             if next_c in ['+' , '-', esc_char, sep_char]:
-                i = i + 1
+                i += 1
                 c = next_c
         if seen_separator:
             rule_pattern = rule_pattern + c

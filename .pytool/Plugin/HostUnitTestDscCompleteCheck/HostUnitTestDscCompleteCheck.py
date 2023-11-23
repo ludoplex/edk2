@@ -38,7 +38,10 @@ class HostUnitTestDscCompleteCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Check the " + packagename + " Host Unit Test DSC for a being complete", packagename + ".HostUnitTestDscCompleteCheck")
+        return (
+            f"Check the {packagename} Host Unit Test DSC for a being complete",
+            f"{packagename}.HostUnitTestDscCompleteCheck",
+        )
 
     ##
     # External function of plugin.  This function is used to perform the task of the MuBuild Plugin
@@ -100,9 +103,11 @@ class HostUnitTestDscCompleteCheck(ICiBuildPlugin):
 
         # Check if INF in component section
         for INF in INFFiles:
-            if not any(INF.strip() in x for x in dp.ThreeMods) and \
-               not any(INF.strip() in x for x in dp.SixMods) and \
-               not any(INF.strip() in x for x in dp.OtherMods):
+            if (
+                all(INF.strip() not in x for x in dp.ThreeMods)
+                and all(INF.strip() not in x for x in dp.SixMods)
+                and all(INF.strip() not in x for x in dp.OtherMods)
+            ):
 
                 infp = InfParser().SetBaseAbsPath(Edk2pathObj.WorkspacePath)
                 infp.SetPackagePaths(Edk2pathObj.PackagePathList)
@@ -112,23 +117,20 @@ class HostUnitTestDscCompleteCheck(ICiBuildPlugin):
                         "Ignoring INF. Missing key for MODULE_TYPE {0}".format(INF))
                     continue
 
-                if(infp.Dict["MODULE_TYPE"] == "HOST_APPLICATION"):
+                if (infp.Dict["MODULE_TYPE"] == "HOST_APPLICATION"):
                     # should compile test a library that is declared type HOST_APPLICATION
                     pass
 
-                elif (len(infp.SupportedPhases) > 0 and
-                      "HOST_APPLICATION" in infp.SupportedPhases and
-                      infp.SupportedPhases != AllPhases):
-                    # should compile test a library that supports HOST_APPLICATION but
-                    # require it to be an explicit opt-in
-                    pass
-
-                else:
+                elif (
+                    len(infp.SupportedPhases) <= 0
+                    or "HOST_APPLICATION" not in infp.SupportedPhases
+                    or infp.SupportedPhases == AllPhases
+                ):
                     tc.LogStdOut(
                         "Ignoring INF. MODULE_TYPE or suppored phases not HOST_APPLICATION {0}".format(INF))
                     continue
 
-                logging.critical(INF + " not in " + wsr_dsc_path)
+                logging.critical(f"{INF} not in {wsr_dsc_path}")
                 tc.LogStdError("{0} not in {1}".format(INF, wsr_dsc_path))
                 overall_status = overall_status + 1
 

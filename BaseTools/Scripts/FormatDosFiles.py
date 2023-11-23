@@ -19,7 +19,7 @@ import sys
 import copy
 
 __prog__        = 'FormatDosFiles'
-__version__     = '%s Version %s' % (__prog__, '0.10 ')
+__version__ = f'{__prog__} Version 0.10 '
 __copyright__   = 'Copyright (c) 2018-2019, Intel Corporation. All rights reserved.'
 __description__ = 'Convert source files to meet the EDKII C Coding Standards Specification.\n'
 DEFAULT_EXT_LIST = ['.h', '.c', '.nasm', '.nasmb', '.asm', '.S', '.inf', '.dec', '.dsc', '.fdf', '.uni', '.asl', '.aslc', '.vfr', '.idf', '.txt', '.bat', '.py']
@@ -67,8 +67,12 @@ def FormatFilesInDir(DirPath, ExtList, Args):
                             FileNames.remove(ItemPath)
             if Continue:
                 continue
-        for FileName in [f for f in FileNames if any(f.endswith(ext) for ext in ExtList)]:
-                FileList.append(os.path.join(DirPath, FileName))
+        FileList.extend(
+            os.path.join(DirPath, FileName)
+            for FileName in [
+                f for f in FileNames if any(f.endswith(ext) for ext in ExtList)
+            ]
+        )
     for File in FileList:
         FormatFile(File, Args)
 

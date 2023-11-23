@@ -93,14 +93,17 @@ class CodeQlBuildPlugin(IUefiBuildPlugin):
             build_params = self._get_build_params()
 
             codeql_build_cmd = ""
-            if GetHostInfo().os == "Windows":
-                self.codeql_cmd_path = self.codeql_cmd_path.parent / (
-                    self.codeql_cmd_path.name + '.bat')
-            elif GetHostInfo().os == "Linux":
-                self.codeql_cmd_path = self.codeql_cmd_path.parent / (
-                    self.codeql_cmd_path.name + '.sh')
+            if GetHostInfo().os == "Linux":
+                self.codeql_cmd_path = (
+                    self.codeql_cmd_path.parent / f'{self.codeql_cmd_path.name}.sh'
+                )
                 codeql_build_cmd += f"#!/bin/bash{os.linesep * 2}"
-            codeql_build_cmd += "build " + build_params
+            elif GetHostInfo().os == "Windows":
+                self.codeql_cmd_path = (
+                    self.codeql_cmd_path.parent
+                    / f'{self.codeql_cmd_path.name}.bat'
+                )
+            codeql_build_cmd += f"build {build_params}"
 
             self.codeql_cmd_path.parent.mkdir(exist_ok=True, parents=True)
             self.codeql_cmd_path.write_text(encoding='utf8', data=codeql_build_cmd)
@@ -147,23 +150,23 @@ class CodeQlBuildPlugin(IUefiBuildPlugin):
 
         rt = self.builder.env.GetValue("TARGET_ARCH").split(" ")
         for t in rt:
-            build_params += " -a " + t
+            build_params += f" -a {t}"
 
         if (self.builder.env.GetValue("BUILDREPORTING") == "TRUE"):
             build_params += (" -y " +
                              self.builder.env.GetValue("BUILDREPORT_FILE"))
             rt = self.builder.env.GetValue("BUILDREPORT_TYPES").split(" ")
             for t in rt:
-                build_params += " -Y " + t
+                build_params += f" -Y {t}"
 
         # add special processing to handle building a single module
         mod = self.builder.env.GetValue("BUILDMODULE")
         if (mod is not None and len(mod.strip()) > 0):
-            build_params += " -m " + mod
-            edk2_logging.log_progress("Single Module Build: " + mod)
+            build_params += f" -m {mod}"
+            edk2_logging.log_progress(f"Single Module Build: {mod}")
 
         build_vars = self.builder.env.GetAllBuildKeyValues(self.target)
         for key, value in build_vars.items():
-            build_params += " -D " + key + "=" + value
+            build_params += f" -D {key}={value}"
 
         return build_params

@@ -50,23 +50,22 @@ class WindowsVsToolChain(IUefiBuildPlugin):
                     f"HOST TYPE defined by environment.  Host Type is {HostType}")
             else:
                 HostInfo = GetHostInfo()
-                if HostInfo.arch == "x86":
-                    if HostInfo.bit == "32":
-                        HostType = "x86"
-                    elif HostInfo.bit == "64":
-                        HostType = "x64"
-                else:
+                if HostInfo.arch != "x86":
                     raise NotImplementedError()
 
+                if HostInfo.bit == "32":
+                    HostType = "x86"
+                elif HostInfo.bit == "64":
+                    HostType = "x64"
             # VS2017_HOST options are not exactly the same as QueryVcVariables. This translates.
             VC_HOST_ARCH_TRANSLATOR = {
                 "x86": "x86", "x64": "AMD64", "arm": "not supported", "arm64": "not supported"}
 
             # check to see if full path already configured
-            if shell_environment.GetEnvironment().get_shell_var("VS2017_PREFIX") != None:
-                self.Logger.info("VS2017_PREFIX is already set.")
-
-            else:
+            if (
+                shell_environment.GetEnvironment().get_shell_var("VS2017_PREFIX")
+                is None
+            ):
                 install_path = self._get_vs_install_path(
                     "VS2017".lower(), "VS150INSTALLPATH")
                 vc_ver = self._get_vc_version(install_path, "VS150TOOLVER")
@@ -95,18 +94,14 @@ class WindowsVsToolChain(IUefiBuildPlugin):
                 for (k, v) in vs_vars.items():
                     shell_env.set_shell_var(k, v)
 
+            else:
+                self.Logger.info("VS2017_PREFIX is already set.")
+
             # now confirm it exists
             if not os.path.exists(shell_environment.GetEnvironment().get_shell_var("VS2017_PREFIX")):
                 self.Logger.error("Path for VS2017 toolchain is invalid")
                 return -2
 
-        #
-        # VS2019 - Follow VS2019 where there is potential for many versions of the tools.
-        # If a specific version is required then the user must set both env variables:
-        # VS160INSTALLPATH:  base install path on system to VC install dir.  Here you will find the VC folder, etc
-        # VS160TOOLVER:      version number for the VC compiler tools
-        # VS2019_PREFIX:     path to MSVC compiler folder with trailing slash (can be used instead of two vars above)
-        # VS2017_HOST:       set the host architecture to use for host tools, and host libs, etc
         elif thebuilder.env.GetValue("TOOL_CHAIN_TAG") == "VS2019":
 
             # check to see if host is configured
@@ -123,23 +118,22 @@ class WindowsVsToolChain(IUefiBuildPlugin):
                     f"HOST TYPE defined by environment.  Host Type is {HostType}")
             else:
                 HostInfo = GetHostInfo()
-                if HostInfo.arch == "x86":
-                    if HostInfo.bit == "32":
-                        HostType = "x86"
-                    elif HostInfo.bit == "64":
-                        HostType = "x64"
-                else:
+                if HostInfo.arch != "x86":
                     raise NotImplementedError()
 
+                if HostInfo.bit == "32":
+                    HostType = "x86"
+                elif HostInfo.bit == "64":
+                    HostType = "x64"
             # VS2019_HOST options are not exactly the same as QueryVcVariables. This translates.
             VC_HOST_ARCH_TRANSLATOR = {
                 "x86": "x86", "x64": "AMD64", "arm": "not supported", "arm64": "not supported"}
 
             # check to see if full path already configured
-            if shell_environment.GetEnvironment().get_shell_var("VS2019_PREFIX") != None:
-                self.Logger.info("VS2019_PREFIX is already set.")
-
-            else:
+            if (
+                shell_environment.GetEnvironment().get_shell_var("VS2019_PREFIX")
+                is None
+            ):
                 install_path = self._get_vs_install_path(
                     "VS2019".lower(), "VS160INSTALLPATH")
                 vc_ver = self._get_vc_version(install_path, "VS160TOOLVER")
@@ -167,6 +161,9 @@ class WindowsVsToolChain(IUefiBuildPlugin):
                     interesting_keys, VC_HOST_ARCH_TRANSLATOR[HostType], vs_version="vs2019")
                 for (k, v) in vs_vars.items():
                     shell_env.set_shell_var(k, v)
+
+            else:
+                self.Logger.info("VS2019_PREFIX is already set.")
 
             # now confirm it exists
             if not os.path.exists(shell_environment.GetEnvironment().get_shell_var("VS2019_PREFIX")):
@@ -203,7 +200,7 @@ class WindowsVsToolChain(IUefiBuildPlugin):
             self.Logger.critical(
                 "Failed to find Visual Studio tools.  Might need to check for VS install")
             return vc_ver
-        if(vc_ver is None):
+        if (vc_ver is None):
             # Not specified...find latest
             p2 = os.path.join(path, "VC", "Tools", "MSVC")
             if not os.path.isdir(p2):
@@ -211,5 +208,5 @@ class WindowsVsToolChain(IUefiBuildPlugin):
                     "Failed to find VC tools.  Might need to check for VS install")
                 return vc_ver
             vc_ver = os.listdir(p2)[-1].strip()  # get last in list
-            self.Logger.debug("Found VC Tool version is %s" % vc_ver)
+            self.Logger.debug(f"Found VC Tool version is {vc_ver}")
         return vc_ver

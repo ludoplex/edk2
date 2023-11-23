@@ -158,13 +158,10 @@ class DependencyExpression:
         return " ".join(self.TokenList)
 
     def __repr__(self):
-        WellForm = ''
-        for Token in self.PostfixNotation:
-            if Token in self.SupportedOpcode:
-                WellForm += "\n    " + Token
-            else:
-                WellForm += ' ' + Token
-        return WellForm
+        return ''.join(
+            "\n    " + Token if Token in self.SupportedOpcode else f' {Token}'
+            for Token in self.PostfixNotation
+        )
 
     ## Split the expression string into token list
     def GetExpressionTokenList(self):
@@ -177,17 +174,25 @@ class DependencyExpression:
         for Token in self.TokenList:
             if Token == "(":
                 if LastToken not in self.SupportedOpcode + ['(', '', None]:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: missing operator before open parentheses",
-                                    ExtraData="Near %s" % LastToken)
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        "Invalid dependency expression: missing operator before open parentheses",
+                        ExtraData=f"Near {LastToken}",
+                    )
                 Stack.append(Token)
             elif Token == ")":
                 if '(' not in Stack:
                     EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: mismatched parentheses",
                                     ExtraData=str(self))
                 elif LastToken in self.SupportedOpcode + ['', None]:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: missing operand before close parentheses",
-                                    ExtraData="Near %s" % LastToken)
-                while len(Stack) > 0:
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        "Invalid dependency expression: missing operand before close parentheses",
+                        ExtraData=f"Near {LastToken}",
+                    )
+                while Stack:
                     if Stack[-1] == '(':
                         Stack.pop()
                         break
@@ -195,13 +200,21 @@ class DependencyExpression:
             elif Token in self.OpcodePriority:
                 if Token == DEPEX_OPCODE_NOT:
                     if LastToken not in self.SupportedOpcode + ['(', '', None]:
-                        EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: missing operator before NOT",
-                                        ExtraData="Near %s" % LastToken)
+                        EdkLogger.error(
+                            "GenDepex",
+                            PARSER_ERROR,
+                            "Invalid dependency expression: missing operator before NOT",
+                            ExtraData=f"Near {LastToken}",
+                        )
                 elif LastToken in self.SupportedOpcode + ['(', '', None]:
-                        EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: missing operand before " + Token,
-                                        ExtraData="Near %s" % LastToken)
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"Invalid dependency expression: missing operand before {Token}",
+                        ExtraData=f"Near {LastToken}",
+                    )
 
-                while len(Stack) > 0:
+                while Stack:
                     if Stack[-1] == "(" or self.OpcodePriority[Token] >= self.OpcodePriority[Stack[-1]]:
                         break
                     self.PostfixNotation.append(Stack.pop())
@@ -211,20 +224,26 @@ class DependencyExpression:
                 if Token not in self.SupportedOpcode:
                     # not OP, take it as GUID
                     if LastToken not in self.SupportedOpcode + ['(', '', None]:
-                        EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: missing operator before %s" % Token,
-                                        ExtraData="Near %s" % LastToken)
-                    if len(self.OpcodeList) == 0 or self.OpcodeList[-1] not in self.ExclusiveOpcode:
-                        if Token not in self.SupportedOperand:
+                        EdkLogger.error(
+                            "GenDepex",
+                            PARSER_ERROR,
+                            f"Invalid dependency expression: missing operator before {Token}",
+                            ExtraData=f"Near {LastToken}",
+                        )
+                    if Token not in self.SupportedOperand:
+                        if len(self.OpcodeList) == 0 or self.OpcodeList[-1] not in self.ExclusiveOpcode:
                             self.PostfixNotation.append(DEPEX_OPCODE_PUSH)
-                # check if OP is valid in this phase
                 elif Token in self.Opcode[self.Phase]:
                     if Token == DEPEX_OPCODE_END:
                         break
                     self.OpcodeList.append(Token)
                 else:
-                    EdkLogger.error("GenDepex", PARSER_ERROR,
-                                    "Opcode=%s doesn't supported in %s stage " % (Token, self.Phase),
-                                    ExtraData=str(self))
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"Opcode={Token} doesn't supported in {self.Phase} stage ",
+                        ExtraData=str(self),
+                    )
                 self.PostfixNotation.append(Token)
             LastToken = Token
 
@@ -232,7 +251,7 @@ class DependencyExpression:
         if '(' in Stack or ')' in Stack:
             EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid dependency expression: mismatched parentheses",
                             ExtraData=str(self))
-        while len(Stack) > 0:
+        while Stack:
             self.PostfixNotation.append(Stack.pop())
         if self.PostfixNotation[-1] != DEPEX_OPCODE_END:
             self.PostfixNotation.append(DEPEX_OPCODE_END)
@@ -242,25 +261,49 @@ class DependencyExpression:
         for Op in self.AboveAllOpcode:
             if Op in self.PostfixNotation:
                 if Op != self.PostfixNotation[0]:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "%s should be the first opcode in the expression" % Op,
-                                    ExtraData=str(self))
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"{Op} should be the first opcode in the expression",
+                        ExtraData=str(self),
+                    )
                 if len(self.PostfixNotation) < 3:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "Missing operand for %s" % Op,
-                                    ExtraData=str(self))
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"Missing operand for {Op}",
+                        ExtraData=str(self),
+                    )
         for Op in self.ExclusiveOpcode:
             if Op in self.OpcodeList:
                 if len(self.OpcodeList) > 1:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "%s should be the only opcode in the expression" % Op,
-                                    ExtraData=str(self))
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"{Op} should be the only opcode in the expression",
+                        ExtraData=str(self),
+                    )
                 if len(self.PostfixNotation) < 3:
-                    EdkLogger.error("GenDepex", PARSER_ERROR, "Missing operand for %s" % Op,
-                                    ExtraData=str(self))
+                    EdkLogger.error(
+                        "GenDepex",
+                        PARSER_ERROR,
+                        f"Missing operand for {Op}",
+                        ExtraData=str(self),
+                    )
         if self.TokenList[-1] != DEPEX_OPCODE_END and self.TokenList[-1] in self.NonEndingOpcode:
-            EdkLogger.error("GenDepex", PARSER_ERROR, "Extra %s at the end of the dependency expression" % self.TokenList[-1],
-                            ExtraData=str(self))
+            EdkLogger.error(
+                "GenDepex",
+                PARSER_ERROR,
+                f"Extra {self.TokenList[-1]} at the end of the dependency expression",
+                ExtraData=str(self),
+            )
         if self.TokenList[-1] == DEPEX_OPCODE_END and self.TokenList[-2] in self.NonEndingOpcode:
-            EdkLogger.error("GenDepex", PARSER_ERROR, "Extra %s at the end of the dependency expression" % self.TokenList[-2],
-                            ExtraData=str(self))
+            EdkLogger.error(
+                "GenDepex",
+                PARSER_ERROR,
+                f"Extra {self.TokenList[-2]} at the end of the dependency expression",
+                ExtraData=str(self),
+            )
         if DEPEX_OPCODE_END in self.TokenList and DEPEX_OPCODE_END != self.TokenList[-1]:
             EdkLogger.error("GenDepex", PARSER_ERROR, "Extra expressions after END",
                             ExtraData=str(self))
@@ -281,18 +324,17 @@ class DependencyExpression:
             if Token in self.SupportedOpcode or Token in NewOperand:
                 continue
             AllOperand.add(Token)
-            if Token == DEPEX_OPCODE_TRUE:
-                if Op == DEPEX_OPCODE_AND:
-                    continue
-                else:
-                    NewOperand.append(Token)
-                    break
-            elif Token == DEPEX_OPCODE_FALSE:
-                if Op == DEPEX_OPCODE_OR:
-                    continue
-                else:
-                    NewOperand.append(Token)
-                    break
+            if (
+                Token == DEPEX_OPCODE_TRUE
+                and Op == DEPEX_OPCODE_AND
+                or Token != DEPEX_OPCODE_TRUE
+                and Token == DEPEX_OPCODE_FALSE
+                and Op == DEPEX_OPCODE_OR
+            ):
+                continue
+            elif Token in [DEPEX_OPCODE_TRUE, DEPEX_OPCODE_FALSE]:
+                NewOperand.append(Token)
+                break
             NewOperand.append(Token)
 
         # don't generate depex if only TRUE operand left
@@ -301,19 +343,30 @@ class DependencyExpression:
             return
 
         # don't generate depex if all operands are architecture protocols
-        if self.ModuleType in [SUP_MODULE_UEFI_DRIVER, SUP_MODULE_DXE_DRIVER, SUP_MODULE_DXE_RUNTIME_DRIVER, SUP_MODULE_DXE_SAL_DRIVER, SUP_MODULE_DXE_SMM_DRIVER, SUP_MODULE_MM_STANDALONE] and \
-           Op == DEPEX_OPCODE_AND and \
-           self.ArchProtocols == set(GuidStructureStringToGuidString(Guid) for Guid in AllOperand):
+        if (
+            self.ModuleType
+            in [
+                SUP_MODULE_UEFI_DRIVER,
+                SUP_MODULE_DXE_DRIVER,
+                SUP_MODULE_DXE_RUNTIME_DRIVER,
+                SUP_MODULE_DXE_SAL_DRIVER,
+                SUP_MODULE_DXE_SMM_DRIVER,
+                SUP_MODULE_MM_STANDALONE,
+            ]
+            and Op == DEPEX_OPCODE_AND
+            and self.ArchProtocols
+            == {GuidStructureStringToGuidString(Guid) for Guid in AllOperand}
+        ):
             self.PostfixNotation = []
             return
 
-        if len(NewOperand) == 0:
+        if not NewOperand:
             self.TokenList = list(AllOperand)
         else:
             self.TokenList = []
             while True:
                 self.TokenList.append(NewOperand.pop(0))
-                if NewOperand == []:
+                if not NewOperand:
                     break
                 self.TokenList.append(Op)
         self.PostfixNotation = []
@@ -334,7 +387,11 @@ class DependencyExpression:
             GuidValueString = GuidValueString.replace("{", "").replace("}", "").replace(" ", "")
             GuidValueList = GuidValueString.split(",")
         if len(GuidValueList) != 11:
-            EdkLogger.error("GenDepex", PARSER_ERROR, "Invalid GUID value string or opcode: %s" % Guid)
+            EdkLogger.error(
+                "GenDepex",
+                PARSER_ERROR,
+                f"Invalid GUID value string or opcode: {Guid}",
+            )
         return pack("1I2H8B", *(int(value, 16) for value in GuidValueList))
 
     ## Save the binary form of dependency expression in file
@@ -353,9 +410,12 @@ class DependencyExpression:
             if Item in self.Opcode[self.Phase]:
                 Buffer.write(pack("B", self.Opcode[self.Phase][Item]))
             elif Item in self.SupportedOpcode:
-                EdkLogger.error("GenDepex", FORMAT_INVALID,
-                                "Opcode [%s] is not expected in %s phase" % (Item, self.Phase),
-                                ExtraData=self.ExpressionString)
+                EdkLogger.error(
+                    "GenDepex",
+                    FORMAT_INVALID,
+                    f"Opcode [{Item}] is not expected in {self.Phase} phase",
+                    ExtraData=self.ExpressionString,
+                )
             else:
                 Buffer.write(self.GetGuidValue(Item))
 
@@ -371,7 +431,7 @@ class DependencyExpression:
         return FileChangeFlag
 
 versionNumber = ("0.04" + " " + gBUILD_VERSION)
-__version__ = "%prog Version " + versionNumber
+__version__ = f"%prog Version {versionNumber}"
 __copyright__ = "Copyright (c) 2007-2018, Intel Corporation  All rights reserved."
 __usage__ = "%prog [options] [dependency_expression_file]"
 

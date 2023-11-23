@@ -27,20 +27,20 @@ class Symbols:
         self.sourceName = ""
 
 
-    def getSymbol (self, rva):
+    def getSymbol(self, rva):
         index = 0
         lineName  = 0
         sourceName = "??"
-        while index + 1 < self.lineCount :
-            if self.listLineAddress[index][0] <= rva and self.listLineAddress[index + 1][0] > rva :
+        while index + 1 < self.lineCount:
+            if self.listLineAddress[index][0] <= rva and self.listLineAddress[index + 1][0] > rva:
                 offset = rva - self.listLineAddress[index][0]
                 functionName = self.listLineAddress[index][1]
                 lineName = self.listLineAddress[index][2]
                 sourceName = self.listLineAddress[index][3]
-                if lineName == 0 :
-                  return " (" + self.listLineAddress[index][1] + "() - " + ")"
-                else :
-                  return " (" + self.listLineAddress[index][1] + "() - " + sourceName + ":" + str(lineName) + ")"
+                if lineName == 0:
+                    return f" ({self.listLineAddress[index][1]}() - )"
+                else:
+                    return f" ({self.listLineAddress[index][1]}() - {sourceName}:{str(lineName)})"
             index += 1
 
         return " (unknown)"
@@ -53,19 +53,14 @@ class Symbols:
         try:
             nmCommand = "nm"
             nmLineOption = "-l"
-            print("parsing (debug) - " + pdbName)
-            os.system ('%s %s %s > nmDump.line.log' % (nmCommand, nmLineOption, pdbName))
+            print(f"parsing (debug) - {pdbName}")
+            os.system(f'{nmCommand} {nmLineOption} {pdbName} > nmDump.line.log')
         except :
             print('ERROR: nm command not available.  Please verify PATH')
             return
 
-        #
-        # parse line
-        #
-        linefile = open("nmDump.line.log")
-        reportLines = linefile.readlines()
-        linefile.close()
-
+        with open("nmDump.line.log") as linefile:
+            reportLines = linefile.readlines()
         # 000113ca T AllocatePool  c:\home\edk-ii\MdePkg\Library\UefiMemoryAllocationLib\MemoryAllocationLib.c:399
         patchLineFileMatchString = "([0-9a-fA-F]*)\s+[T|D|t|d]\s+(\w+)\s*((?:[a-zA-Z]:)?[\w+\-./_a-zA-Z0-9\\\\]*):?([0-9]*)"
 
@@ -83,10 +78,7 @@ class Symbols:
                 rva = int (match.group(1), 16)
                 functionName = match.group(2)
                 sourceName = match.group(3)
-                if cmp (match.group(4), "") != 0 :
-                    lineName = int (match.group(4))
-                else :
-                    lineName = 0
+                lineName = int (match.group(4)) if cmp (match.group(4), "") != 0 else 0
                 self.listLineAddress.append ([rva, functionName, lineName, sourceName])
 
         self.lineCount = len (self.listLineAddress)
@@ -106,20 +98,15 @@ class Symbols:
             DIA2DumpCommand = "Dia2Dump.exe"
             #DIA2SymbolOption = "-p"
             DIA2LinesOption = "-l"
-            print("parsing (pdb) - " + pdbName)
+            print(f"parsing (pdb) - {pdbName}")
             #os.system ('%s %s %s > DIA2Dump.symbol.log' % (DIA2DumpCommand, DIA2SymbolOption, pdbName))
-            os.system ('%s %s %s > DIA2Dump.line.log' % (DIA2DumpCommand, DIA2LinesOption, pdbName))
+            os.system(f'{DIA2DumpCommand} {DIA2LinesOption} {pdbName} > DIA2Dump.line.log')
         except :
             print('ERROR: DIA2Dump command not available.  Please verify PATH')
             return
 
-        #
-        # parse line
-        #
-        linefile = open("DIA2Dump.line.log")
-        reportLines = linefile.readlines()
-        linefile.close()
-
+        with open("DIA2Dump.line.log") as linefile:
+            reportLines = linefile.readlines()
         #   ** GetDebugPrintErrorLevel
         #  line 32 at [0000C790][0001:0000B790], len = 0x3  c:\home\edk-ii\mdepkg\library\basedebugprinterrorlevellib\basedebugprinterrorlevellib.c (MD5: 687C0AE564079D35D56ED5D84A6164CC)
         #  line 36 at [0000C793][0001:0000B793], len = 0x5
@@ -170,12 +157,9 @@ def getSymbolName(driverName, rva):
 
     #print "driverName - " + driverName
 
-    try :
+    try:
         symbolList = symbolsFile.symbolsTable[driverName]
-        if symbolList is not None:
-            return symbolList.getSymbol (rva)
-        else:
-            return " (???)"
+        return symbolList.getSymbol (rva) if symbolList is not None else " (???)"
     except Exception:
         return " (???)"
 
@@ -185,22 +169,15 @@ def processLine(newline):
 
     driverPrefixLen = len("Driver - ")
     # get driver name
-    if cmp(newline[0:driverPrefixLen], "Driver - ") == 0 :
+    if cmp(newline[:driverPrefixLen], "Driver - ") == 0:
         driverlineList = newline.split(" ")
         driverName = driverlineList[2]
         #print "Checking : ", driverName
 
         # EDKII application output
         pdbMatchString = "Driver - \w* \(Usage - 0x[0-9a-fA-F]+\) \(Pdb - ([:\-.\w\\\\/]*)\)\s*"
-        pdbName = ""
         match = re.match(pdbMatchString, newline)
-        if match is not None:
-            #print "match - " + newline
-            #print "0 - " + match.group(0)
-            #print "1 - " + match.group(1)
-            pdbName = match.group(1)
-            #print "PDB - " + pdbName
-
+        pdbName = match.group(1) if match is not None else ""
         symbolsFile.symbolsTable[driverName] = Symbols()
 
         if cmp (pdbName[-3:], "pdb") == 0 :
@@ -221,14 +198,15 @@ def processLine(newline):
         rvaName = ""
         symbolName = ""
 
-    if cmp(rvaName, "") == 0 :
-        return newline
-    else :
-        return newline + symbolName
+    return newline if cmp(rvaName, "") == 0 else newline + symbolName
 
 def myOptionParser():
     usage = "%prog [--version] [-h] [--help] [-i inputfile [-o outputfile]]"
-    Parser = OptionParser(usage=usage, description=__copyright__, version="%prog " + str(versionNumber))
+    Parser = OptionParser(
+        usage=usage,
+        description=__copyright__,
+        version=f"%prog {str(versionNumber)}",
+    )
     Parser.add_option("-i", "--inputfile", dest="inputfilename", type="string", help="The input memory profile info file output from MemoryProfileInfo application in MdeModulePkg")
     Parser.add_option("-o", "--outputfile", dest="outputfilename", type="string", help="The output memory profile info file with symbol, MemoryProfileInfoSymbol.txt will be used if it is not specified")
 
@@ -246,15 +224,15 @@ def main():
 
     symbolsFile = SymbolsFile()
 
-    try :
+    try:
         file = open(Options.inputfilename)
     except Exception:
-        print("fail to open " + Options.inputfilename)
+        print(f"fail to open {Options.inputfilename}")
         return 1
-    try :
+    try:
         newfile = open(Options.outputfilename, "w")
     except Exception:
-        print("fail to open " + Options.outputfilename)
+        print(f"fail to open {Options.outputfilename}")
         return 1
 
     try:

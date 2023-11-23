@@ -26,10 +26,14 @@ def get_address_from_string(address):
     return int(address.strip("S:").strip("N:").strip("EL2:").strip("EL1:"), 16)
 
 def get_module_from_addr(modules, addr):
-    for key,value in modules.items():
-        if (value['start'] <= addr) and (addr <= value['end']):
-            return key
-    return None
+    return next(
+        (
+            key
+            for key, value in modules.items()
+            if value['start'] <= addr <= value['end']
+        ),
+        None,
+    )
 
 def add_cycles_to_function(functions, func_name, addr, cycles):
     if func_name != "<Unknown>":

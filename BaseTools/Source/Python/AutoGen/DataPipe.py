@@ -109,7 +109,10 @@ class MemoryDataPipe(DataPipe):
         for m in PlatformInfo.Platform.Modules:
             ModuleTypeOptions, PlatformModuleOptions = PlatformInfo.GetGlobalBuildOptions(BuildDB.BuildObject[m,PlatformInfo.Arch,PlatformInfo.BuildTarget,PlatformInfo.ToolChain])
             if ModuleTypeOptions or PlatformModuleOptions:
-                module_build_opt.update({(m.File,m.Root): {"ModuleTypeOptions":ModuleTypeOptions, "PlatformModuleOptions":PlatformModuleOptions}})
+                module_build_opt[(m.File, m.Root)] = {
+                    "ModuleTypeOptions": ModuleTypeOptions,
+                    "PlatformModuleOptions": PlatformModuleOptions,
+                }
 
         self.DataContainer = {"PLA_BO":platform_build_opt,
                               "TOOLDEF":ToolDefinition,
@@ -150,7 +153,7 @@ class MemoryDataPipe(DataPipe):
 
         self.DataContainer = {"gCommandMaxLength": GlobalData.gCommandMaxLength}
 
-        self.DataContainer = {"Env_Var": {k:v for k, v in os.environ.items()}}
+        self.DataContainer = {"Env_Var": dict(os.environ)}
 
         self.DataContainer = {"PackageList": [(dec.MetaFile,dec.Arch) for dec in PlatformInfo.PackageList]}
 
@@ -158,7 +161,7 @@ class MemoryDataPipe(DataPipe):
 
         self.DataContainer = {"DatabasePath":GlobalData.gDatabasePath}
 
-        self.DataContainer = {"FdfParser": True if GlobalData.gFdfParser else False}
+        self.DataContainer = {"FdfParser": bool(GlobalData.gFdfParser)}
 
         self.DataContainer = {"LogLevel": EdkLogger.GetLevel()}
 

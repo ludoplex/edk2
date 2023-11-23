@@ -71,11 +71,11 @@ class Meta_TestDebugMacroCheck(type):
     Metaclass for debug macro test case class factory.
     """
     @classmethod
-    def __prepare__(mcls, name, bases, **kwargs):
+    def __prepare__(cls, name, bases, **kwargs):
         """Returns the test case namespace for this class."""
         candidate_macros, cls_ns, cnt = [], {}, 0
 
-        if "category" in kwargs.keys():
+        if "category" in kwargs:
             candidate_macros = [m for m in DebugMacroDataSet.DEBUG_MACROS if
                                 m.category == kwargs["category"]]
         else:
@@ -84,12 +84,12 @@ class Meta_TestDebugMacroCheck(type):
         for cnt, macro_test in enumerate(candidate_macros):
             f_name = f'test_{macro_test.category}_{cnt}'
             t_desc = f'{macro_test!s}'
-            cls_ns[f_name] = mcls.build_macro_test(macro_test, t_desc)
+            cls_ns[f_name] = cls.build_macro_test(macro_test, t_desc)
         return cls_ns
 
-    def __new__(mcls, name, bases, ns, **kwargs):
+    def __new__(cls, name, bases, ns, **kwargs):
         """Defined to prevent variable args from bubbling to the base class."""
-        return super().__new__(mcls, name, bases, ns)
+        return super().__new__(cls, name, bases, ns)
 
     def __init__(mcls, name, bases, ns, **kwargs):
         """Defined to prevent variable args from bubbling to the base class."""
@@ -141,7 +141,7 @@ class Meta_TestDebugMacroCheck(type):
         Returns:
             str: The caller function name.
         """
-        return "function: " + inspect.currentframe().f_back.f_code.co_name
+        return f"function: {inspect.currentframe().f_back.f_code.co_name}"
 
 
 # Test container classes for dynamically generated macro test cases.

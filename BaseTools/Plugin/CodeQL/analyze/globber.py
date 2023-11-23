@@ -62,10 +62,8 @@ def _match_component(pattern_component, file_name_component):
 
 
 def _match_components(pattern_components, file_name_components):
-    if len(pattern_components) == 0 and len(file_name_components) == 0:
-        return True
     if len(pattern_components) == 0:
-        return False
+        return len(file_name_components) == 0
     if len(file_name_components) == 0:
         return len(pattern_components) == 1 and pattern_components[0] == '**'
     if pattern_components[0] == '**':
@@ -110,8 +108,7 @@ def match(pattern: str, file_name: str):
         _double_star_first_before_invalid_regex.search(
             pattern) is not None or
         _double_star_middle_before_invalid_regex.search(pattern) is not None):
-        raise ValueError(
-            '** in {} not alone between path separators'.format(pattern))
+        raise ValueError(f'** in {pattern} not alone between path separators')
 
     pattern = pattern.rstrip('/')
     file_name = file_name.rstrip('/')

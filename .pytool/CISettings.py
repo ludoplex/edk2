@@ -186,8 +186,6 @@ class Settings(CiBuildSettingsManager, UpdateSettingsManager, SetupSettingsManag
                     self.UseBuiltInBaseTools = True
                 except ImportError:
                     self.UseBuiltInBaseTools = False
-                    pass
-
             if self.UseBuiltInBaseTools == True:
                 scopes += ('pipbuild-unix',) if is_linux else ('pipbuild-win',)
                 logging.warning("Using Pip Tools based BaseTools")
@@ -212,9 +210,11 @@ class Settings(CiBuildSettingsManager, UpdateSettingsManager, SetupSettingsManag
         ''' return iterable containing RequiredSubmodule objects.
         If no RequiredSubmodules return an empty iterable
         '''
-        rs = []
-        rs.append(RequiredSubmodule(
-            "ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3", False))
+        rs = [
+            RequiredSubmodule(
+                "ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3", False
+            )
+        ]
         rs.append(RequiredSubmodule(
             "CryptoPkg/Library/OpensslLib/openssl", False))
         rs.append(RequiredSubmodule(

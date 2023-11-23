@@ -27,13 +27,13 @@ def get_codeql_db_path(workspace: PathLike, package: str, target: str,
     Returns:
         str: The absolute path to the CodeQL database directory.
     """
-    codeql_db_dir_name = "codeql-db-" + package + "-" + target
+    codeql_db_dir_name = f"codeql-db-{package}-{target}"
     codeql_db_dir_name = codeql_db_dir_name.lower()
     codeql_db_path = os.path.join("Build", codeql_db_dir_name)
     codeql_db_path = os.path.join(workspace, codeql_db_path)
 
     i = 0
-    while os.path.isdir(f"{codeql_db_path + '-%s' % i}"):
+    while os.path.isdir(f"{f'{codeql_db_path}-{i}'}"):
         i += 1
 
     if not new_path:
@@ -42,7 +42,7 @@ def get_codeql_db_path(workspace: PathLike, package: str, target: str,
         else:
             i -= 1
 
-    return codeql_db_path + f"-{i}"
+    return f"{codeql_db_path}-{i}"
 
 
 def get_codeql_cli_path() -> str:

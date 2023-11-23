@@ -150,19 +150,14 @@ class EfiFirmwareVolumeHeader(BinaryItem):
 
     def GetSigunature(self):
         list = self._arr.tolist()
-        sig = ''
-        for x in list[40:44]:
-            sig += chr(x)
-        return sig
+        return ''.join(chr(x) for x in list[40:44])
 
     def GetAttribute(self):
         return list2int(self._arr.tolist()[44:48])
 
     def GetErasePolarity(self):
         list = self.GetAttrStrings()
-        if 'EFI_FVB2_ERASE_POLARITY' in list:
-            return True
-        return False
+        return 'EFI_FVB2_ERASE_POLARITY' in list
 
     def GetAttrStrings(self):
         list = []
@@ -245,7 +240,7 @@ class EfiFirmwareVolumeHeader(BinaryItem):
         return list2int(self._arr.tolist()[48:50])
 
     def Dump(self):
-        print('Signature: %s' % self.GetSigunature())
+        print(f'Signature: {self.GetSigunature()}')
         print('Attribute: 0x%X' % self.GetAttribute())
         print('Header Length: 0x%X' % self.GetHeaderLength())
         print('File system Guid: ', self.GetFileSystemGuid())
@@ -273,7 +268,7 @@ class BlockMapEntry(BinaryItem):
 
     def GetNumberBlocks(self):
         list = self._arr.tolist()
-        return list2int(list[0:4])
+        return list2int(list[:4])
 
     def GetLength(self):
         list = self._arr.tolist()
@@ -339,15 +334,12 @@ class EfiFfs(object):
         line  = []
         count = 0
         for item in list:
-            if count < 32:
-                line.append('0x%X' % int(item))
-                count += 1
-            else:
+            if count >= 32:
                 print(' '.join(line))
                 count = 0
                 line = []
-                line.append('0x%X' % int(item))
-                count += 1
+            count += 1
+            line.append('0x%X' % int(item))
 
     def GetHeader(self):
         return self._header
@@ -371,7 +363,7 @@ class EfiFfsHeader(BinaryItem):
 
     def GetNameGuid(self):
         list = self._arr.tolist()
-        return list2guid(list[0:16])
+        return list2guid(list[:16])
 
     def GetType(self):
         list = self._arr.tolist()
@@ -410,9 +402,7 @@ class EfiFfsHeader(BinaryItem):
             return 'EFI_FV_FILETYPE_DEBUG_MAX'
         if value == 0xf0:
             return 'EFI_FV_FILETYPE_FFS_PAD'
-        if value == 0xff:
-            return 'EFI_FV_FILETYPE_FFS_MAX'
-        return 'Unknown FFS Type'
+        return 'EFI_FV_FILETYPE_FFS_MAX' if value == 0xff else 'Unknown FFS Type'
 
     def GetAttributes(self):
         list = self._arr.tolist()
@@ -430,7 +420,7 @@ class EfiFfsHeader(BinaryItem):
             state = (~state) & 0xFF
         HighestBit = 0x80
         while (HighestBit != 0) and (HighestBit & state) == 0:
-            HighestBit = HighestBit >> 1
+            HighestBit >>= 1
         return HighestBit
 
     def GetStateString(self):
@@ -510,7 +500,7 @@ class EfiSectionHeader(BinaryItem):
 
     def GetSectionSize(self):
         list = self._arr.tolist()
-        return list2int(list[0:3])
+        return list2int(list[:3])
 
     def GetType(self):
         list = self._arr.tolist()
@@ -538,9 +528,8 @@ class EfiFvMapFile(object):
             return False
 
         try:
-            file = open(path, 'r')
-            lines = file.readlines()
-            file.close()
+            with open(path, 'r') as file:
+                lines = file.readlines()
         except:
             return False
 
@@ -558,9 +547,7 @@ class EfiFvMapFile(object):
         return True
 
     def GetEntry(self, guid):
-        if guid in self._mapentries.keys():
-            return self._mapentries[guid]
-        return None
+        return self._mapentries[guid] if guid in self._mapentries.keys() else None
 
 class EfiFvMapFileEntry(object):
     def __init__(self, name, baseaddr, entry, guid):
@@ -579,7 +566,7 @@ class EfiFvMapFileEntry(object):
         return self._entry
 
 def list2guid(list):
-    val1 = list2int(list[0:4])
+    val1 = list2int(list[:4])
     val2 = list2int(list[4:6])
     val3 = list2int(list[6:8])
     val4 = 0
@@ -587,8 +574,7 @@ def list2guid(list):
         val4 = (val4 << 8) | int(item)
 
     val  = val1 << 12 * 8 | val2 << 10 * 8 | val3 << 8 * 8 | val4
-    guid = uuid.UUID(int=val)
-    return guid
+    return uuid.UUID(int=val)
 
 def list2int(list):
     val = 0
@@ -601,6 +587,4 @@ def align(value, alignment):
 
 gInvalidGuid = uuid.UUID(int=0xffffffffffffffffffffffffffffffff)
 def isValidGuid(guid):
-    if guid == gInvalidGuid:
-        return False
-    return True
+    return guid != gInvalidGuid

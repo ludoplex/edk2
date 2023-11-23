@@ -52,7 +52,10 @@ class CharEncodingCheck(ICiBuildPlugin):
                 a tuple containing the testcase name and the classname
                 (testcasename, classname)
         """
-        return ("Check for valid file encoding for " + packagename, packagename + ".CharEncodingCheck")
+        return (
+            f"Check for valid file encoding for {packagename}",
+            f"{packagename}.CharEncodingCheck",
+        )
 
     ##
     # External function of plugin.  This function is used to perform the task of the ci_build_plugin Plugin

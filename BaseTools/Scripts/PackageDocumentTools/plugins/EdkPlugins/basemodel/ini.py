@@ -19,12 +19,9 @@ class BaseINIFile(object):
         @return: instance of this class
 
         """
-        if len(args) == 0: return object.__new__(cls)
+        if not args: return object.__new__(cls)
         filename = args[0]
-        parent   = None
-        if len(args) > 1:
-            parent = args[1]
-
+        parent = args[1] if len(args) > 1 else None
         key = os.path.normpath(filename)
         if key not in cls._objs.keys():
             cls._objs[key] = object.__new__(cls)
@@ -47,7 +44,7 @@ class BaseINIFile(object):
             self._parents = []
 
         if parent in self._parents:
-            ErrorMsg("Duplicate parent is found for INI file %s" % self._filename)
+            ErrorMsg(f"Duplicate parent is found for INI file {self._filename}")
             return
         self._parents.append(parent)
 
@@ -72,11 +69,10 @@ class BaseINIFile(object):
             return False
 
         try:
-            handle = open(filename, 'r')
-            self._lines  = handle.readlines()
-            handle.close()
+            with open(filename, 'r') as handle:
+                self._lines  = handle.readlines()
         except:
-            raise EdkException("Fail to open file %s" % filename)
+            raise EdkException(f"Fail to open file {filename}")
 
         return True
 
@@ -88,17 +84,18 @@ class BaseINIFile(object):
         for key in self._sections.keys():
             if '.private' in key:
                 continue
-            for item in self._sections[key]:
-                if item.GetBaseName().lower().find(name.lower()) != -1:
-                    arr.append(item)
+            arr.extend(
+                item
+                for item in self._sections[key]
+                if item.GetBaseName().lower().find(name.lower()) != -1
+            )
         return arr
 
     def GetSectionObjectsByName(self, name):
         arr = []
         sects = self.GetSectionByName(name)
         for sect in sects:
-            for obj in sect.GetObjects():
-                arr.append(obj)
+            arr.extend(iter(sect.GetObjects()))
         return arr
 
     def Parse(self):
@@ -113,7 +110,7 @@ class BaseINIFile(object):
             # skip comments
             if len(templine) == 0: continue
             if re.match("^\[=*\]", templine) or re.match("^#", templine) or \
-               re.match("\*+/", templine):
+                   re.match("\*+/", templine):
                 continue
 
             m = section_re.match(templine)
@@ -124,9 +121,11 @@ class BaseINIFile(object):
                     for sObj in sObjs:
                         sObj._end = index - 1
                         if not sObj.Parse():
-                            ErrorMsg("Fail to parse section %s" % sObj.GetBaseName(),
-                                     self._filename,
-                                     sObj._start)
+                            ErrorMsg(
+                                f"Fail to parse section {sObj.GetBaseName()}",
+                                self._filename,
+                                sObj._start,
+                            )
 
                 # start new section
                 sname_arr = m.groups()[0].split(',')
@@ -150,9 +149,11 @@ class BaseINIFile(object):
             for sObj in sObjs:
                 sObj._end = index
                 if not sObj.Parse():
-                    ErrorMsg("Fail to parse section %s" % sObj.GetBaseName(),
-                             self._filename,
-                             sObj._start)
+                    ErrorMsg(
+                        f"Fail to parse section {sObj.GetBaseName()}",
+                        self._filename,
+                        sObj._start,
+                    )
 
         self._isModify = False
         return True
@@ -302,17 +303,7 @@ class BaseINISection(object):
                 visit += 1
                 continue
             line = line.split('#')[0].strip()
-            if iniObj is not None:
-                if line.endswith('}'):
-                    iniObj._end = visit - self._start
-                    if not iniObj.Parse():
-                        ErrorMsg("Fail to parse ini object",
-                                 self.GetFilename(),
-                                 iniObj.GetStartLinenumber())
-                    else:
-                        self._objs.append(iniObj)
-                    iniObj = None
-            else:
+            if iniObj is None:
                 iniObj = self.GetSectionINIObject(self)
                 iniObj._start = visit - self._start
                 if not line.endswith('{'):
@@ -324,6 +315,15 @@ class BaseINISection(object):
                     else:
                         self._objs.append(iniObj)
                     iniObj = None
+            elif line.endswith('}'):
+                iniObj._end = visit - self._start
+                if not iniObj.Parse():
+                    ErrorMsg("Fail to parse ini object",
+                             self.GetFilename(),
+                             iniObj.GetStartLinenumber())
+                else:
+                    self._objs.append(iniObj)
+                iniObj = None
             visit += 1
         return True
 

@@ -29,9 +29,9 @@ def printsection(section):
     """Prints out the dictionary describing a Maintainers.txt section."""
     print('===')
     for key in section.keys():
-        print("Key: %s" % key)
+        print(f"Key: {key}")
         for item in section[key]:
-            print('  %s' % item)
+            print(f'  {item}')
 
 def pattern_to_regex(pattern):
     """Takes a string containing regular UNIX path wildcards
@@ -52,20 +52,18 @@ def pattern_to_regex(pattern):
 def path_in_section(path, section):
     """Returns True of False indicating whether the path is covered by
        the current section."""
-    if not 'file' in section:
+    if 'file' not in section:
         return False
 
     for pattern in section['file']:
         regex = pattern_to_regex(pattern)
 
-        match = re.match(regex, path)
-        if match:
+        if match := re.match(regex, path):
             # Check if there is an exclude pattern that applies
             for pattern in section['exclude']:
                 regex = pattern_to_regex(pattern)
 
-                match = re.match(regex, path)
-                if match:
+                if match := re.match(regex, path):
                     return False
 
             return True
@@ -78,31 +76,21 @@ def get_section_maintainers(path, section):
     maintainers = []
     reviewers = []
     lists = []
-    nowarn_status = ['Supported', 'Maintained']
-
     if path_in_section(path, section):
+        nowarn_status = ['Supported', 'Maintained']
+
         for status in section['status']:
             if status not in nowarn_status:
                 print('WARNING: Maintained status for "%s" is \'%s\'!' % (path, status))
         for address in section['maintainer']:
             # Convert to list if necessary
-            if isinstance(address, list):
-                maintainers += address
-            else:
-                maintainers += [address]
+            maintainers += address if isinstance(address, list) else [address]
         for address in section['reviewer']:
             # Convert to list if necessary
-            if isinstance(address, list):
-                reviewers += address
-            else:
-                reviewers += [address]
+            reviewers += address if isinstance(address, list) else [address]
         for address in section['list']:
             # Convert to list if necessary
-            if isinstance(address, list):
-                lists += address
-            else:
-                lists += [address]
-
+            lists += address if isinstance(address, list) else [address]
     return {'maintainers': maintainers, 'reviewers': reviewers, 'lists': lists}
 
 def get_maintainers(path, sections, level=0):
@@ -120,7 +108,7 @@ def get_maintainers(path, sections, level=0):
     if not maintainers:
         # If no match found, look for match for (nonexistent) file
         # REPO.working_dir/<default>
-        print('"%s": no maintainers found, looking for default' % path)
+        print(f'"{path}": no maintainers found, looking for default')
         if level == 0:
             recipients = get_maintainers('<default>', sections, level=level + 1)
             maintainers += recipients['maintainers']
@@ -128,16 +116,15 @@ def get_maintainers(path, sections, level=0):
             lists += recipients['lists']
         else:
             print("No <default> maintainers set for project.")
-        if not maintainers:
-            return None
+    if not maintainers:
+        return None
 
     return {'maintainers': maintainers, 'reviewers': reviewers, 'lists': lists}
 
 def parse_maintainers_line(line):
     """Parse one line of Maintainers.txt, returning any match group and its key."""
     for key, expression in EXPRESSIONS.items():
-        match = expression.match(line)
-        if match:
+        if match := expression.match(line):
             return key, match.group(key)
     return None, None
 
@@ -198,10 +185,8 @@ if __name__ == '__main__':
         print(file)
         recipients = get_maintainers(file, SECTIONS)
         ADDRESSES |= set(recipients['maintainers'] + recipients['reviewers'] + recipients['lists'])
-    ADDRESSES = list(ADDRESSES)
-    ADDRESSES.sort()
-
+    ADDRESSES = sorted(ADDRESSES)
     for address in ADDRESSES:
         if '<' in address and '>' in address:
             address = address.split('>', 1)[0] + '>'
-        print('  %s' % address)
+        print(f'  {address}')

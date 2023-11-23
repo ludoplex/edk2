@@ -178,15 +178,8 @@ class BuildFile(object):
         MakePath = AutoGenObject.BuildOption.get('MAKE', {}).get('PATH')
         if not MakePath:
             MakePath = AutoGenObject.ToolDefinition.get('MAKE', {}).get('PATH')
-        if "nmake" in MakePath:
-            self._FileType = NMAKE_FILETYPE
-        else:
-            self._FileType = GMAKE_FILETYPE
-
-        if sys.platform == "win32":
-            self._Platform = WIN32_PLATFORM
-        else:
-            self._Platform = POSIX_PLATFORM
+        self._FileType = NMAKE_FILETYPE if "nmake" in MakePath else GMAKE_FILETYPE
+        self._Platform = WIN32_PLATFORM if sys.platform == "win32" else POSIX_PLATFORM
 
     ## Create build file.
     #
@@ -228,9 +221,7 @@ class BuildFile(object):
         return [self._RD_TEMPLATE_[self._Platform] % {'dir':Dir} for Dir in DirList]
 
     def PlaceMacro(self, Path, MacroDefinitions=None):
-        if Path.startswith("$("):
-            return Path
-        else:
+        if not Path.startswith("$("):
             if MacroDefinitions is None:
                 MacroDefinitions = {}
             PathLength = len(Path)
@@ -240,9 +231,9 @@ class BuildFile(object):
                 if MacroValueLength == 0:
                     continue
                 if MacroValueLength <= PathLength and Path.startswith(MacroValue):
-                    Path = "$(%s)%s" % (MacroName, Path[MacroValueLength:])
+                    Path = f"$({MacroName}){Path[MacroValueLength:]}"
                     break
-            return Path
+        return Path
 
 ## ModuleMakefile class
 #

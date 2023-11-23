@@ -42,11 +42,7 @@ class SettingsManager(UpdateSettingsManager, SetupSettingsManager, PrEvalSetting
         ''' return iterable containing RequiredSubmodule objects.
         If no RequiredSubmodules return an empty iterable
         '''
-        rs = []
-
-        # intentionally declare this one with recursive false to avoid overhead
-        rs.append(RequiredSubmodule(
-            "CryptoPkg/Library/OpensslLib/openssl", False))
+        rs = [RequiredSubmodule("CryptoPkg/Library/OpensslLib/openssl", False)]
 
         # To avoid maintenance of this file for every new submodule
         # lets just parse the .gitmodules and add each if not already in list.
@@ -165,9 +161,9 @@ class PlatformBuilder(UefiBuilder, BuildSettingsManager):
         Arch = shell_environment.GetBuildVars().GetValue("TARGET_ARCH", "")
 
         if GetHostInfo().os.upper() == "LINUX" and ActualToolChainTag.upper().startswith("GCC"):
-            if "AARCH64" == Arch:
+            if Arch == "AARCH64":
                 scopes += ("gcc_aarch64_linux",)
-            elif "ARM" == Arch:
+            elif Arch == "ARM":
                 scopes += ("gcc_arm_linux",)
         return scopes
 
@@ -222,12 +218,10 @@ class PlatformBuilder(UefiBuilder, BuildSettingsManager):
         # Unique Command and Args parameters per ARCH
         if (self.env.GetValue("TARGET_ARCH").upper() == "AARCH64"):
             cmd = "qemu-system-aarch64"
-            args = "-M virt"
-            args += " -cpu cortex-a57"                                          # emulate cpu
-        elif(self.env.GetValue("TARGET_ARCH").upper() == "ARM"):
+            args = "-M virt" + " -cpu cortex-a57"
+        elif (self.env.GetValue("TARGET_ARCH").upper() == "ARM"):
             cmd = "qemu-system-arm"
-            args = "-M virt,highmem=off"
-            args += " -cpu cortex-a15"                                          # emulate cpu
+            args = "-M virt,highmem=off" + " -cpu cortex-a15"
         else:
             raise NotImplementedError()
 
@@ -251,16 +245,10 @@ class PlatformBuilder(UefiBuilder, BuildSettingsManager):
             args += " -device usb-kbd,id=input1,bus=usb.0,port=2"     # add a usb keyboard
 
         if (self.env.GetValue("MAKE_STARTUP_NSH").upper() == "TRUE"):
-            f = open(os.path.join(VirtualDrive, "startup.nsh"), "w")
-            f.write("BOOT SUCCESS !!! \n")
-            # add commands here
-            f.write("reset -s\n")
-            f.close()
-
+            with open(os.path.join(VirtualDrive, "startup.nsh"), "w") as f:
+                f.write("BOOT SUCCESS !!! \n")
+                # add commands here
+                f.write("reset -s\n")
         ret = RunCmd(cmd, args)
 
-        if ret == 0xc0000005:
-            # for some reason getting a c0000005 on successful return
-            return 0
-
-        return ret
+        return 0 if ret == 0xc0000005 else ret

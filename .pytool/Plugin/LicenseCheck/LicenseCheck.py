@@ -48,7 +48,7 @@ class LicenseCheck(ICiBuildPlugin):
                 a tuple containing the testcase name and the classname
                 (testcasename, classname)
         """
-        return ("Check for license for " + packagename, packagename + ".LicenseCheck")
+        return f"Check for license for {packagename}", f"{packagename}.LicenseCheck"
 
     ##
     # External function of plugin.  This function is used to perform the task of the ci_build_plugin Plugin
@@ -68,7 +68,7 @@ class LicenseCheck(ICiBuildPlugin):
             os.makedirs(temp_path)
         # Output file to use for git diff operations
         temp_diff_output = os.path.join (temp_path, 'diff.txt')
-        params = "diff --output={} --unified=0 origin/master HEAD".format(temp_diff_output)
+        params = f"diff --output={temp_diff_output} --unified=0 origin/master HEAD"
         RunCmd("git", params)
         with open(temp_diff_output) as file:
             patch = file.read().strip().split("\n")
@@ -76,10 +76,7 @@ class LicenseCheck(ICiBuildPlugin):
         if os.path.exists(temp_path):
             shutil.rmtree(temp_path)
 
-        ignore_files = []
-        if "IgnoreFiles" in pkgconfig:
-            ignore_files = pkgconfig["IgnoreFiles"]
-
+        ignore_files = pkgconfig["IgnoreFiles"] if "IgnoreFiles" in pkgconfig else []
         self.ok = True
         self.startcheck = False
         self.license = True
@@ -103,7 +100,7 @@ class LicenseCheck(ICiBuildPlugin):
             if line_index + 1 == count or patch[line_index + 1].startswith('diff --') and self.startcheck:
                 if not self.license:
                     self.all_file_pass = False
-                    error_message = "Invalid license in: " + added_file + " Hint: Only BSD-2-Clause-Patent is accepted."
+                    error_message = f"Invalid license in: {added_file} Hint: Only BSD-2-Clause-Patent is accepted."
                     logging.error(error_message)
                 self.startcheck = False
                 self.license = True
@@ -117,7 +114,4 @@ class LicenseCheck(ICiBuildPlugin):
             return 1
 
     def IsIgnoreFile(self, file: str, ignore_files: List[str]) -> bool:
-        for f in ignore_files:
-            if f in file:
-                return True
-        return False
+        return any(f in file for f in ignore_files)

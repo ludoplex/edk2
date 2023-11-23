@@ -35,7 +35,7 @@ class GuidCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Confirm GUIDs are unique in " + packagename, packagename + ".GuidCheck")
+        return f"Confirm GUIDs are unique in {packagename}", f"{packagename}.GuidCheck"
 
     def _FindConflictingGuidValues(self, guidlist: list) -> list:
         """ Find all duplicate guids by guid value and report them as errors
@@ -96,7 +96,11 @@ class GuidCheck(ICiBuildPlugin):
             # Loop thru and remove any errors where all files are infs as it is ok if
             # they have the same inf base name.
             for e in errors[:]:
-                if len( [en for en in e.entries if not en.absfilepath.lower().endswith(".inf")]) == 0:
+                if not [
+                    en
+                    for en in e.entries
+                    if not en.absfilepath.lower().endswith(".inf")
+                ]:
                     errors.remove(e)
 
         return errors
@@ -186,10 +190,10 @@ class GuidCheck(ICiBuildPlugin):
                     ## Make a list of the names that are not in the names list.  If there
                     ## are any in the list then this error should not be ignored.
                     t = [x for x in b.entries if x.name not in names]
-                    if(len(t) == len(b.entries)):
+                    if (len(t) == len(b.entries)):
                         ## did not apply to any entry
                         continue
-                    elif(len(t) == 0):
+                    elif not t:
                         ## full match - ignore duplicate
                         tc.LogStdOut("GuidCheck.IgnoreDuplicates -> {0}".format(a))
                         Errors.remove(b)
@@ -208,11 +212,7 @@ class GuidCheck(ICiBuildPlugin):
 
         # Log errors for anything within the package under test
         for er in Errors[:]:
-            InMyPackage = False
-            for a in er.entries:
-                if abs_pkg_path in a.absfilepath:
-                    InMyPackage = True
-                    break
+            InMyPackage = any(abs_pkg_path in a.absfilepath for a in er.entries)
             if(not InMyPackage):
                 Errors.remove(er)
             else:

@@ -17,9 +17,7 @@ class INFFile(ini.BaseINIFile):
 
     def GetProduceLibraryClass(self):
         obj = self.GetDefine("LIBRARY_CLASS")
-        if obj is None: return None
-
-        return obj.split('|')[0].strip()
+        return None if obj is None else obj.split('|')[0].strip()
 
     def GetSectionObjectsByName(self, name, arch=None):
         arr = []
@@ -29,9 +27,7 @@ class INFFile(ini.BaseINIFile):
             if not sect.IsArchMatch(arch):
                 continue
 
-            for obj in sect.GetObjects():
-                arr.append(obj)
-
+            arr.extend(iter(sect.GetObjects()))
         return arr
 
     def GetSourceObjects(self, arch=None, tool=None):
@@ -42,11 +38,7 @@ class INFFile(ini.BaseINIFile):
             if not sect.IsArchMatch(arch):
                 continue
 
-            for obj in sect.GetObjects():
-                if not obj.IsMatchFamily(tool):
-                    continue
-                arr.append(obj)
-
+            arr.extend(obj for obj in sect.GetObjects() if obj.IsMatchFamily(tool))
         return arr
 
     def Parse(self):
@@ -103,18 +95,13 @@ class INFSection(ini.BaseINISection):
 
     def GetArch(self):
         arr = self._name.split('.')
-        if len(arr) == 1:
-            return 'common'
-        return arr[1]
+        return 'common' if len(arr) == 1 else arr[1]
 
     def IsArchMatch(self, arch):
         if arch is None or self.GetArch() == 'common':
             return True
 
-        if self.GetArch().lower() != arch.lower():
-            return False
-
-        return True
+        return self.GetArch().lower() == arch.lower()
 
 class INFSectionObject(ini.BaseINISectionObject):
     def GetArch(self):
@@ -255,19 +242,19 @@ class INFSourceObject(INFSectionObject):
         if family is None:
             return True
         if self.mFamily is not None:
-            if family.strip().lower() == self.mFamily.lower():
-                return True
-            else:
-                return False
-        else:
-            fname = self.GetSourcePath()
-            if fname.endswith('.S') and family.lower() != 'gcc':
-                return False
-            if fname.endswith('.s') and (self.GetArch().lower() != 'ipf' and self.GetArch().lower() != 'common'):
-                return False
-            if fname.lower().endswith('.asm') and (family.lower() != 'msft' and family.lower() != 'intel'):
-                return False
-        return True
+            return family.strip().lower() == self.mFamily.lower()
+        fname = self.GetSourcePath()
+        if fname.endswith('.S') and family.lower() != 'gcc':
+            return False
+        if fname.endswith('.s') and self.GetArch().lower() not in [
+            'ipf',
+            'common',
+        ]:
+            return False
+        return not fname.lower().endswith('.asm') or family.lower() in [
+            'msft',
+            'intel',
+        ]
 
     @staticmethod
     def GetObjectDict():

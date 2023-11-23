@@ -131,16 +131,13 @@ class ArmPlatformDebugger:
         return (self.get_fv_at(addr) != None)
 
     def get_fv_at(self, addr):
-        for fv in self.platform.fvs:
-            if (fv[0] <= addr) and (addr < fv[0] + fv[1]):
-                return fv
-        return None
+        return next(
+            (fv for fv in self.platform.fvs if fv[0] <= addr < fv[0] + fv[1]), None
+        )
 
     def load_current_symbols(self):
         pc = int(self.ec.getRegisterService().getValue('PC')) & 0xFFFFFFFF
         if self.in_fv(pc):
-            debug_infos = []
-
             (fv_base, fv_size) = self.get_fv_at(pc)
 
             if self.firmware_volumes.has_key(fv_base) == False:
@@ -148,26 +145,23 @@ class ArmPlatformDebugger:
 
             stack_frame = self.ec.getTopLevelStackFrame()
             info = self.firmware_volumes[fv_base].load_symbols_at(int(stack_frame.getRegisterService().getValue('PC')) & 0xFFFFFFFF, self.verbose)
-            debug_infos.append(info)
+            debug_infos = [info]
             while stack_frame.next() is not None:
                 stack_frame = stack_frame.next()
 
                 # Stack frame attached to 'PC'
                 pc = int(stack_frame.getRegisterService().getValue('PC')) & 0xFFFFFFFF
 
-                # Check if the symbols for this stack frame have already been loaded
-                found = False
-                for debug_info in debug_infos:
-                    if (pc >= debug_info[0]) and (pc < debug_info[0] + debug_info[1]):
-                        found = True
-                if found == False:
+                found = any(
+                    (pc >= debug_info[0]) and (pc < debug_info[0] + debug_info[1])
+                    for debug_info in debug_infos
+                )
+                if not found:
                     info = self.firmware_volumes[fv_base].load_symbols_at(pc)
                     debug_infos.append(info)
 
-            #self.firmware_volumes[fv_base].load_symbols_at(pc)
+                #self.firmware_volumes[fv_base].load_symbols_at(pc)
         elif self.in_sysmem(pc):
-            debug_infos = []
-
             if self.system_table is None:
                 # Find the System Table
                 self.system_table = system_table.SystemTable(self.ec, self.platform.sysmembase, self.platform.sysmemsize)
@@ -178,26 +172,25 @@ class ArmPlatformDebugger:
 
             stack_frame = self.ec.getTopLevelStackFrame()
             info = self.debug_info_table.load_symbols_at(int(stack_frame.getRegisterService().getValue('PC')) & 0xFFFFFFFF, self.verbose)
-            debug_infos.append(info)
+            debug_infos = [info]
             while stack_frame.next() is not None:
                 stack_frame = stack_frame.next()
 
                 # Stack frame attached to 'PC'
                 pc = int(stack_frame.getRegisterService().getValue('PC')) & 0xFFFFFFFF
 
-                # Check if the symbols for this stack frame have already been loaded
-                found = False
-                for debug_info in debug_infos:
-                    if (pc >= debug_info[0]) and (pc < debug_info[0] + debug_info[1]):
-                        found = True
-                if found == False:
+                found = any(
+                    (pc >= debug_info[0]) and (pc < debug_info[0] + debug_info[1])
+                    for debug_info in debug_infos
+                )
+                if not found:
                     try:
                         info = self.debug_info_table.load_symbols_at(pc)
                         debug_infos.append(info)
                     except:
                         pass
 
-            #self.debug_info_table.load_symbols_at(pc)
+                #self.debug_info_table.load_symbols_at(pc)
         else:
             raise Exception('ArmPlatformDebugger', "Not supported region")
 

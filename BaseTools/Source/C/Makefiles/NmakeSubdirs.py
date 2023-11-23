@@ -21,7 +21,7 @@ import multiprocessing
 import copy
 import sys
 __prog__        = 'NmakeSubdirs'
-__version__     = '%s Version %s' % (__prog__, '0.10 ')
+__version__ = f'{__prog__} Version 0.10 '
 __copyright__   = 'Copyright (c) 2018, Intel Corporation. All rights reserved.'
 __description__ = 'Replace for NmakeSubdirs.bat in windows ,support parallel build for nmake.\n'
 
@@ -36,10 +36,7 @@ def RunCommand(WorkDir=None, *Args, **kwargs):
         kwargs["stdout"] = subprocess.PIPE
     p = subprocess.Popen(Args, cwd=WorkDir, stderr=kwargs["stderr"], stdout=kwargs["stdout"])
     stdout, stderr = p.communicate()
-    message = ""
-    if stdout is not None:
-        message = stdout.decode(errors='ignore') #for compatibility in python 2 and 3
-
+    message = stdout.decode(errors='ignore') if stdout is not None else ""
     if p.returncode != 0:
         raise RuntimeError("Error while execute command \'{0}\' in direcotry {1}\n{2}".format(" ".join(Args), WorkDir, message))
 
@@ -94,7 +91,7 @@ class ThreadControl(object):
         self._schedule.start()
 
     def Schedule(self):
-        for i in range(self._processNum):
+        for _ in range(self._processNum):
             task = threading.Thread(target=self.startTask)
             task.daemon = False
             self.running.append(task)

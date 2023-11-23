@@ -35,7 +35,10 @@ class LibraryClassCheck(ICiBuildPlugin):
                 a tuple containing the testcase name and the classname
                 (testcasename, classname)
         """
-        return ("Check library class declarations in " + packagename, packagename + ".LibraryClassCheck")
+        return (
+            f"Check library class declarations in {packagename}",
+            f"{packagename}.LibraryClassCheck",
+        )
 
     def __GetPkgDec(self, rootpath):
         try:
@@ -91,9 +94,9 @@ class LibraryClassCheck(ICiBuildPlugin):
 
             AllHeaderFiles.extend(hfiles)
 
-        if len(AllHeaderFiles) == 0:
+        if not AllHeaderFiles:
             tc.SetSkipped()
-            tc.LogStdError(f"No Library include folder in any Include path")
+            tc.LogStdError("No Library include folder in any Include path")
             return -1
 
         # Remove ignored paths

@@ -22,10 +22,8 @@ class BuildReport:
             elif re.match("g.*Guid", stripped_line):
                 guid = stripped_line
                 self.PCDs[guid] = {}
-            else:
-                m = pcd_reg.match(line)
-                if m:
-                    self.PCDs[guid][m.group(2)] = (m.group(6).strip(),m.group(5))
+            elif m := pcd_reg.match(line):
+                self.PCDs[guid][m.group(2)] = (m.group(6).strip(),m.group(5))
 
     def parse_firmware_device(self, file):
         pass

@@ -19,7 +19,7 @@ class BaseDoxygeItem:
         self.mText = []
 
     def AddDescription(self, desc):
-        self.mDescription = '%s%s' % (self.mDescription, desc)
+        self.mDescription = f'{self.mDescription}{desc}'
 
     def __str__(self):
         return '\n'.join(self.mText)
@@ -108,11 +108,10 @@ class DoxygenFile(Page):
     def Save(self):
         str = self.Generate()
         try:
-            f = open(self.mFilename, 'w')
-            f.write('\n'.join(str))
-            f.close()
+            with open(self.mFilename, 'w') as f:
+                f.write('\n'.join(str))
         except IOError as e:
-            ErrorMsg ('Fail to write file %s' % self.mFilename)
+            ErrorMsg(f'Fail to write file {self.mFilename}')
             return False
 
         return True
@@ -371,11 +370,7 @@ class DoxygenConfigFile:
         if len(path) == 0:
             return False
 
-        for p in self.mFileList:
-            if path.lower() == p.lower():
-                return True
-
-        return False
+        return any(path.lower() == p.lower() for p in self.mFileList)
 
     def AddFile(self, path):
         if path is None:
@@ -422,11 +417,10 @@ class DoxygenConfigFile:
                                         'PreDefined':' '.join(self.mPreDefined),
                                         'ProjectVersion':self.mProjectVersion}
         try:
-            f = open(path, 'w')
-            f.write(text)
-            f.close()
+            with open(path, 'w') as f:
+                f.write(text)
         except IOError as e:
-            ErrorMsg ('Fail to generate doxygen config file %s' % path)
+            ErrorMsg(f'Fail to generate doxygen config file {path}')
             return False
 
         return True

@@ -38,7 +38,10 @@ class DependencyCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Test Package Dependencies for modules in " + packagename, packagename + ".DependencyCheck")
+        return (
+            f"Test Package Dependencies for modules in {packagename}",
+            f"{packagename}.DependencyCheck",
+        )
 
     ##
     # External function of plugin.  This function is used to perform the task of the MuBuild Plugin
@@ -93,7 +96,7 @@ class DependencyCheck(ICiBuildPlugin):
         # For each INF file
         for file in INFFiles:
             ip = InfParser()
-            logging.debug("Parsing " + file)
+            logging.debug(f"Parsing {file}")
             ip.SetBaseAbsPath(Edk2pathObj.WorkspacePath).SetPackagePaths(Edk2pathObj.PackagePathList).ParseFile(file)
 
             if("MODULE_TYPE" not in ip.Dict):
@@ -104,7 +107,7 @@ class DependencyCheck(ICiBuildPlugin):
             for p in ip.PackagesUsed:
                 if p not in pkgconfig["AcceptableDependencies"]:
                     # If not in the main acceptable dependencies list then check module specific
-                    mod_specific_key = "AcceptableDependencies-" + mod_type
+                    mod_specific_key = f"AcceptableDependencies-{mod_type}"
                     if mod_specific_key in pkgconfig and p in pkgconfig[mod_specific_key]:
                         continue
 

@@ -417,12 +417,11 @@ def ctype_to_str(ctype, indent='', hide_list=[]):
         if field[0] in hide_list:
             continue
 
-        result += indent + f'{field[0]} = '
+        result += f'{indent}{field[0]} = '
         if tname == 'EFI_GUID':
             result += GuidNames.to_name(GuidNames.to_uuid(attr)) + '\n'
         elif issubclass(type(attr), Structure):
-            result += f'{tname}\n' + \
-                ctype_to_str(attr, indent + '  ', hide_list)
+            result += (f'{tname}\n' + ctype_to_str(attr, f'{indent}  ', hide_list))
         elif isinstance(attr, int):
             result += f'0x{attr:x}\n'
         else:
@@ -444,10 +443,10 @@ def hexdump(data, indent=''):
     if not isinstance(data, bytearray):
         data = bytearray(data)
 
-    result = ''
-    for i in range(0, len(data), 16):
-        result += indent + hexline(i, data[i:i+16]) + '\n'
-    return result
+    return ''.join(
+        indent + hexline(i, data[i : i + 16]) + '\n'
+        for i in range(0, len(data), 16)
+    )
 
 
 class EfiTpl:
@@ -461,15 +460,15 @@ class EfiTpl:
             result = f'{self.tpl:d}'
         elif self.tpl < 8:
             result = "TPL_APPLICATION"
-            if self.tpl - 4 > 0:
+            if self.tpl > 4:
                 result += f' + {self.tpl - 4:d}'
         elif self.tpl < 16:
             result = "TPL_CALLBACK"
-            if self.tpl - 8 > 0:
+            if self.tpl > 8:
                 result += f' + {self.tpl - 8:d}'
         elif self.tpl < 31:
             result = "TPL_NOTIFY"
-            if self.tpl - 16 > 0:
+            if self.tpl > 16:
                 result += f' + {self.tpl - 16:d}'
         elif self.tpl == 31:
             result = "TPL_HIGH_LEVEL"
@@ -682,14 +681,11 @@ class GuidNames:
         self.uuid = None if uuid is None else self.to_uuid(uuid)
 
     def __str__(self):
-        if self.uuid is None:
-            result = ''
-            for key, value in GuidNames._dict_.items():
-                result += f'{key}: {value}\n'
-        else:
-            result = self.to_name(self.uuid)
-
-        return result
+        return (
+            ''.join(f'{key}: {value}\n' for key, value in GuidNames._dict_.items())
+            if self.uuid is None
+            else self.to_name(self.uuid)
+        )
 
     @classmethod
     def to_uuid(cls, obj):
@@ -719,17 +715,11 @@ class GuidNames:
 
     @classmethod
     def is_guid_str(cls, name):
-        if not isinstance(name, str):
-            return False
-        return name.count('-') >= 4
+        return False if not isinstance(name, str) else name.count('-') >= 4
 
     @classmethod
     def to_c_guid(cls, value):
-        if isinstance(value, uuid.UUID):
-            guid = value
-        else:
-            guid = uuid.UUID(value)
-
+        guid = value if isinstance(value, uuid.UUID) else uuid.UUID(value)
         (data1, data2, data3,
          data4_0, data4_1, data4_2, data4_3,
          data4_4, data4_5, data4_6, data4_7) = struct.unpack(
@@ -1008,10 +998,7 @@ class EfiHob:
         data = self._file.read(size)
         cdata = ctype_struct.from_buffer(bytearray(data))
 
-        if size > type_size:
-            return cdata, data[type_size:]
-        else:
-            return cdata, None
+        return (cdata, data[type_size:]) if size > type_size else (cdata, None)
 
 
 class EFI_DEVICE_PATH(LittleEndianStructure):
@@ -1667,9 +1654,9 @@ class EfiDevicePath:
                     (hdr.Type, hdr.SubType), EFI_DEVICE_PATH)
                 node, extra = self._ctype_read_ex(type_str, ptr, hdr.Length)
                 if 'VENDOR_DEVICE_PATH' in type(node).__name__:
-                    guid_type = self.guid_override_dict.get(
-                                        GuidNames.to_uuid(node.Guid), None)
-                    if guid_type:
+                    if guid_type := self.guid_override_dict.get(
+                        GuidNames.to_uuid(node.Guid), None
+                    ):
                         # use the ctype associated with the GUID
                         node, extra = self._ctype_read_ex(
                                                 guid_type, ptr, hdr.Length)
@@ -1698,7 +1685,7 @@ class EfiDevicePath:
         return result
 
     def valid(self):
-        return True if self.DevicePath else False
+        return bool(self.DevicePath)
 
     def device_path_node(self, address):
         try:
@@ -1740,10 +1727,7 @@ class EfiDevicePath:
 
         cdata = ctype_struct.from_buffer(bytearray(data))
 
-        if size > type_size:
-            return cdata, data[type_size:]
-        else:
-            return cdata, None
+        return (cdata, data[type_size:]) if size > type_size else (cdata, None)
 
 
 class EfiConfigurationTable:
@@ -1923,14 +1907,9 @@ class PeTeImage:
         else:
             pdb = 'No Debug Info:'
 
-        if self.CodeViewUuid:
-            guid = f'{self.CodeViewUuid}:'
-        else:
-            guid = ''
-
+        guid = f'{self.CodeViewUuid}:' if self.CodeViewUuid else ''
         slide = f'slide = {self.TeAdjust:d} ' if self.TeAdjust != 0 else ' '
-        res = guid + f'{pdb} load = 0x{self.LoadAddress:08x} ' + slide
-        return res
+        return f'{guid}{pdb} load = 0x{self.LoadAddress:08x} {slide}'
 
     def _seek(self, offset):
         """
@@ -1992,7 +1971,7 @@ class PeTeImage:
         """Probe to see if this offset is likely a PE/COFF or TE file """
         self.LoadAddress = 0
         e_magic = self._read_offset(2, offset)
-        header_ok = e_magic == b'MZ' or e_magic == b'VZ'
+        header_ok = e_magic in [b'MZ', b'VZ']
         if offset is not None and header_ok:
             self.LoadAddress = offset
         return header_ok

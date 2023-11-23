@@ -47,44 +47,57 @@ def parseCmdArgs():
     if options.WorkspacePath is None:
         errors.append('- Please specify workspace path via option -w!')
     elif not os.path.exists(options.WorkspacePath):
-        errors.append("- Invalid workspace path %s! The workspace path should be exist in absolute path!" % options.WorkspacePath)
+        errors.append(
+            f"- Invalid workspace path {options.WorkspacePath}! The workspace path should be exist in absolute path!"
+        )
 
     if options.PackagePath is None:
         errors.append('- Please specify package DEC file path via option -p!')
     elif not os.path.exists(options.PackagePath):
-        errors.append("- Invalid package's DEC file path %s! The DEC path should be exist in absolute path!" % options.PackagePath)
+        errors.append(
+            f"- Invalid package's DEC file path {options.PackagePath}! The DEC path should be exist in absolute path!"
+        )
 
     default = "C:\\Program Files\\doxygen\\bin\\doxygen.exe"
     if options.DoxygenPath is None:
         if os.path.exists(default):
-            print("Warning: Assume doxygen tool is installed at %s. If not, please specify via -x" % default)
+            print(
+                f"Warning: Assume doxygen tool is installed at {default}. If not, please specify via -x"
+            )
             options.DoxygenPath = default
         else:
-            errors.append('- Please specify the path of doxygen tool installation via option -x! or install it in default path %s' % default)
+            errors.append(
+                f'- Please specify the path of doxygen tool installation via option -x! or install it in default path {default}'
+            )
     elif not os.path.exists(options.DoxygenPath):
-        errors.append("- Invalid doxygen tool path %s! The doxygen tool path should be exist in absolute path!" % options.DoxygenPath)
+        errors.append(
+            f"- Invalid doxygen tool path {options.DoxygenPath}! The doxygen tool path should be exist in absolute path!"
+        )
 
-    if options.OutputPath is not None:
-        if not os.path.exists(options.OutputPath):
-            # create output
-            try:
-                os.makedirs(options.OutputPath)
-            except:
-                errors.append('- Fail to create the output directory %s' % options.OutputPath)
-    else:
+    if options.OutputPath is None:
         if options.PackagePath is not None and os.path.exists(options.PackagePath):
             dirpath = os.path.dirname(options.PackagePath)
             default = os.path.join (dirpath, "Document")
-            print('Warning: Assume document output at %s. If not, please specify via option -o' % default)
+            print(
+                f'Warning: Assume document output at {default}. If not, please specify via option -o'
+            )
             options.OutputPath = default
             if not os.path.exists(default):
                 try:
                     os.makedirs(default)
                 except:
-                    errors.append('- Fail to create default output directory %s! Please specify document output diretory via option -o' % default)
+                    errors.append(
+                        f'- Fail to create default output directory {default}! Please specify document output diretory via option -o'
+                    )
         else:
             errors.append('- Please specify document output path via option -o!')
 
+    elif not os.path.exists(options.OutputPath):
+            # create output
+        try:
+            os.makedirs(options.OutputPath)
+        except:
+            errors.append(f'- Fail to create the output directory {options.OutputPath}')
     if options.Arch is None:
         options.Arch = 'ALL'
         print("Warning: Assume arch is \"ALL\". If not, specify via -a")
@@ -101,14 +114,18 @@ def parseCmdArgs():
         default = "C:\\Program Files\\HTML Help Workshop\\hhc.exe"
         if options.HtmlWorkshopPath is None:
             if os.path.exists(default):
-                print('Warning: Assume the installation path of Microsoft HTML Workshop is %s. If not, specify via option -c.' % default)
+                print(
+                    f'Warning: Assume the installation path of Microsoft HTML Workshop is {default}. If not, specify via option -c.'
+                )
                 options.HtmlWorkshopPath = default
             else:
                 errors.append('- Please specify the installation path of Microsoft HTML Workshop via option -c!')
         elif not os.path.exists(options.HtmlWorkshopPath):
-            errors.append('- The installation path of Microsoft HTML Workshop %s does not exists. ' % options.HtmlWorkshopPath)
+            errors.append(
+                f'- The installation path of Microsoft HTML Workshop {options.HtmlWorkshopPath} does not exists. '
+            )
 
-    if len(errors) != 0:
+    if errors:
         print('\n')
         parser.error('Fail to start due to following reasons: \n%s' %'\n'.join(errors))
     return (options.WorkspacePath, options.PackagePath, options.DoxygenPath, options.OutputPath,
@@ -129,9 +146,9 @@ def callbackLogMessage(msg, level):
 
 def callbackCreateDoxygenProcess(doxPath, configPath):
     if sys.platform == 'win32':
-        cmd = '"%s" %s' % (doxPath, configPath)
+        cmd = f'"{doxPath}" {configPath}'
     else:
-        cmd = '%s %s' % (doxPath, configPath)
+        cmd = f'{doxPath} {configPath}'
     print(cmd)
     subprocess.call(cmd, shell=True)
 
@@ -149,9 +166,8 @@ def DocumentFixup(outPath, arch):
             if not file.lower().endswith('.html'): continue
             fullpath = os.path.join(outPath, root, file)
             try:
-                f = open(fullpath, 'r')
-                text = f.read()
-                f.close()
+                with open(fullpath, 'r') as f:
+                    text = f.read()
             except:
                 logging.getLogger().error('\nFail to open file %s\n' % fullpath)
                 continue
@@ -200,9 +216,8 @@ def FixPageBaseLib(path, text):
                 del lines[lastIdtGateDescriptor]
             lastIdtGateDescriptor = index
     try:
-        f = open(path, 'w')
-        f.write('\n'.join(lines))
-        f.close()
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     except:
         logging.getLogger().error("     <<< Fail to fixup file %s\n" % path)
         return
@@ -218,9 +233,8 @@ def FixPageIA32_IDT_GATE_DESCRIPTOR(path, text):
         if line.find('struct {</td>') != -1 and lines[index - 1].find('Data Fields') != -1:
             lines.insert(index, '<tr><td colspan="2"><br><h2>Data Fields For IA32</h2></td></tr>')
     try:
-        f = open(path, 'w')
-        f.write('\n'.join(lines))
-        f.close()
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     except:
         logging.getLogger().error("     <<< Fail to fixup file %s\n" % path)
         return
@@ -236,11 +250,11 @@ def FixPageBASE_LIBRARY_JUMP_BUFFER(path, text):
         if line.find('Detailed Description') != -1:
             bInDetail = False
         if line.startswith('EBC context buffer used by') and lines[index - 1].startswith('x64 context buffer'):
-            lines[index] = "IA32/IPF/X64/" + line
+            lines[index] = f"IA32/IPF/X64/{line}"
             bNeedRemove  = True
-        if line.startswith("x64 context buffer") or line.startswith('IPF context buffer used by') or \
-           line.startswith('IA32 context buffer used by'):
-            if bNeedRemove:
+        if bNeedRemove:
+            if  line.startswith("x64 context buffer") or line.startswith('IPF context buffer used by') or \
+            line.startswith('IA32 context buffer used by'):
                 lines.remove(line)
         if line.find('>R0</a>') != -1 and not bInDetail:
             if lines[index - 1] != '<tr><td colspan="2"><br><h2>Data Fields For EBC</h2></td></tr>':
@@ -255,11 +269,10 @@ def FixPageBASE_LIBRARY_JUMP_BUFFER(path, text):
             if lines[index - 1] != '<tr><td colspan="2"><br><h2>Data Fields For IA32</h2></td></tr>':
                 lines.insert(index, '<tr><td colspan="2"><br><h2>Data Fields For IA32</h2></td></tr>')
     try:
-        f = open(path, 'w')
-        f.write('\n'.join(lines))
-        f.close()
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     except:
-        logging.getLogger().error("     <<< Fail to fixup file %s" % path)
+        logging.getLogger().error(f"     <<< Fail to fixup file {path}")
         return
     print("    <<< Finish to fixup file %s\n" % path)
 
@@ -307,11 +320,10 @@ def FixPageUefiDriverEntryPoint(path, text):
             del lines[index]
 
     try:
-        f = open(path, 'w')
-        f.write('\n'.join(lines))
-        f.close()
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     except:
-        logging.getLogger().error("     <<< Fail to fixup file %s" % path)
+        logging.getLogger().error(f"     <<< Fail to fixup file {path}")
         return
     print("    <<< Finish to fixup file %s\n" % path)
 
@@ -360,11 +372,10 @@ def FixPageUefiApplicationEntryPoint(path, text):
             del lines[index]
 
     try:
-        f = open(path, 'w')
-        f.write('\n'.join(lines))
-        f.close()
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
     except:
-        logging.getLogger().error("     <<< Fail to fixup file %s" % path)
+        logging.getLogger().error(f"     <<< Fail to fixup file {path}")
         return
     print("    <<< Finish to fixup file %s\n" % path)
 
@@ -415,9 +426,9 @@ if __name__ == '__main__':
     if docmode.lower() == 'chm':
         indexpath = os.path.join(outpath, 'html', 'index.hhp')
         if sys.platform == 'win32':
-            cmd = '"%s" %s' % (hwpath, indexpath)
+            cmd = f'"{hwpath}" {indexpath}'
         else:
-            cmd = '%s %s' % (hwpath, indexpath)
+            cmd = f'{hwpath} {indexpath}'
         subprocess.call(cmd)
         print('\nFinish to generate package document! Please open %s for review' % os.path.join(outpath, 'html', 'index.chm'))
     else:

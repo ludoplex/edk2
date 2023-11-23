@@ -53,17 +53,15 @@ class BuildToolsReport(object):
         json_dict = {"modules": versions_list,
                      "PluginVersion": BuildToolsReport.VERSION}
 
-        htmlfile = open(OutputReport + ".html", "w")
-        jsonfile = open(OutputReport + ".json", "w")
-        template = open(os.path.join(BuildToolsReport.MY_FOLDER, "BuildToolsReport_Template.html"), "r")
+        with open(f"{OutputReport}.html", "w") as htmlfile:
+            with open(f"{OutputReport}.json", "w") as jsonfile:
+                template = open(os.path.join(BuildToolsReport.MY_FOLDER, "BuildToolsReport_Template.html"), "r")
 
-        for line in template.readlines():
-            if "%TO_BE_FILLED_IN_BY_PYTHON_SCRIPT%" in line:
-                line = line.replace("%TO_BE_FILLED_IN_BY_PYTHON_SCRIPT%", json.dumps(json_dict))
-            htmlfile.write(line)
+                for line in template:
+                    if "%TO_BE_FILLED_IN_BY_PYTHON_SCRIPT%" in line:
+                        line = line.replace("%TO_BE_FILLED_IN_BY_PYTHON_SCRIPT%", json.dumps(json_dict))
+                    htmlfile.write(line)
 
-        jsonfile.write(json.dumps(versions_list, indent=4))
+                jsonfile.write(json.dumps(versions_list, indent=4))
 
-        jsonfile.close()
-        template.close()
-        htmlfile.close()
+            template.close()
