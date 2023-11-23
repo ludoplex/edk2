@@ -64,10 +64,8 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
         codeql_sarif_dir_path = codeql_sarif_dir_path.replace(
                                         "-db-", "-analysis-")
         self.codeql_sarif_path = os.path.join(
-                                        codeql_sarif_dir_path,
-                                        (os.path.basename(
-                                            self.codeql_db_path) +
-                                            ".sarif"))
+            codeql_sarif_dir_path, f"{os.path.basename(self.codeql_db_path)}.sarif"
+        )
 
         edk2_logging.log_progress(f"Analyzing {self.package} ({self.target}) "
                                   f"CodeQL database at:\n"
@@ -79,8 +77,9 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
         # in the package CI YAML file that override the global query specifier.
         audit_only = False
         query_specifiers = None
-        package_config_file = Path(os.path.join(
-                                self.package_path, self.package + ".ci.yaml"))
+        package_config_file = Path(
+            os.path.join(self.package_path, f"{self.package}.ci.yaml")
+        )
         plugin_data = None
         if package_config_file.is_file():
             with open(package_config_file, 'r') as cf:
@@ -94,8 +93,7 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
                                       f"{str(package_config_file)}")
                         query_specifiers = plugin_data["QuerySpecifiers"]
 
-        global_audit_only = builder.env.GetValue("STUART_CODEQL_AUDIT_ONLY")
-        if global_audit_only:
+        if global_audit_only := builder.env.GetValue("STUART_CODEQL_AUDIT_ONLY"):
             if global_audit_only.strip().lower() == "true":
                 audit_only = True
 
@@ -142,9 +140,9 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
             return -1
 
         filter_pattern_data = []
-        global_filter_file_value = builder.env.GetValue(
-                                    "STUART_CODEQL_FILTER_FILES")
-        if global_filter_file_value:
+        if global_filter_file_value := builder.env.GetValue(
+            "STUART_CODEQL_FILTER_FILES"
+        ):
             global_filter_files = global_filter_file_value.strip().split(',')
             global_filter_files = [Path(f) for f in global_filter_files]
 
@@ -154,7 +152,7 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
                         global_filter_file_data = yaml.safe_load(ff)
                         if "Filters" in global_filter_file_data:
                             current_pattern_data = \
-                                global_filter_file_data["Filters"]
+                                    global_filter_file_data["Filters"]
                             if type(current_pattern_data) is not list:
                                 logging.critical(
                                     f"CodeQL pattern data must be a list of "
@@ -197,10 +195,7 @@ class CodeQlAnalyzePlugin(IUefiBuildPlugin):
             sarif_file_data = json.load(sf)
 
         try:
-            # Perform minimal JSON parsing to find the number of errors.
-            total_errors = 0
-            for run in sarif_file_data['runs']:
-                total_errors += len(run['results'])
+            total_errors = sum(len(run['results']) for run in sarif_file_data['runs'])
         except KeyError:
             logging.critical("Sarif file does not contain expected data. "
                              "Analysis cannot continue.")

@@ -39,20 +39,18 @@ class EmailAddressCheck:
             self.error('Email description is missing!')
             return
 
-        self.description = "'" + description + "'"
+        self.description = f"'{description}'"
         self.check_email_address(email)
 
     def error(self, *err):
         if self.ok and Verbose.level > Verbose.ONELINE:
-            print('The ' + self.description + ' email address is not valid:')
+            print(f'The {self.description} email address is not valid:')
         self.ok = False
         if Verbose.level < Verbose.NORMAL:
             return
-        count = 0
-        for line in err:
+        for count, line in enumerate(err):
             prefix = (' *', '  ')[count > 0]
             print(prefix, line)
-            count += 1
 
     email_re1 = re.compile(r'(?:\s*)(.*?)(\s*)<(.+)>\s*$',
                            re.MULTILINE|re.IGNORECASE)
@@ -61,7 +59,7 @@ class EmailAddressCheck:
         email = email.strip()
         mo = self.email_re1.match(email)
         if mo is None:
-            self.error("Email format is invalid: " + email.strip())
+            self.error(f"Email format is invalid: {email.strip()}")
             return
 
         name = mo.group(1).strip()
@@ -133,11 +131,9 @@ class CommitMessageCheck:
         self.ok = False
         if Verbose.level < Verbose.NORMAL:
             return
-        count = 0
-        for line in err:
+        for count, line in enumerate(err):
             prefix = (' *', '  ')[count > 0]
             print(prefix, line)
-            count += 1
 
     # Find 'contributed-under:' at the start of a line ignoring case and
     # requires ':' to be present.  Matches if there is white space before
@@ -153,12 +149,8 @@ class CommitMessageCheck:
 
     @staticmethod
     def make_signature_re(sig, re_input=False):
-        if re_input:
-            sub_re = sig
-        else:
-            sub_re = sig.replace('-', r'[-\s]+')
-        re_str = (r'^(?P<tag>' + sub_re +
-                  r')(\s*):(\s*)(?P<value>\S.*?)(?:\s*)$')
+        sub_re = sig if re_input else sig.replace('-', r'[-\s]+')
+        re_str = (f'^(?P<tag>{sub_re}' + r')(\s*):(\s*)(?P<value>\S.*?)(?:\s*)$')
         try:
             return re.compile(re_str, re.MULTILINE|re.IGNORECASE)
         except Exception:
@@ -184,14 +176,13 @@ class CommitMessageCheck:
 
         bad_case_sigs = filter(lambda m: m[0] != sig, sigs)
         for s in bad_case_sigs:
-            self.error("'" +s[0] + "' should be '" + sig + "'")
+            self.error(f"'{s[0]}' should be '{sig}'")
 
         for s in sigs:
             if s[1] != '':
-                self.error('There should be no spaces between ' + sig +
-                           " and the ':'")
+                self.error(f"There should be no spaces between {sig} and the ':'")
             if s[2] != ' ':
-                self.error("There should be a space after '" + sig + ":'")
+                self.error(f"There should be a space after '{sig}:'")
 
             EmailAddressCheck(s[3], sig)
 
@@ -228,11 +219,7 @@ class CommitMessageCheck:
     def check_overall_format(self):
         lines = self.msg.splitlines()
 
-        if len(lines) >= 1 and lines[0].endswith('\r\n'):
-            empty_line = '\r\n'
-        else:
-            empty_line = '\n'
-
+        empty_line = '\r\n' if len(lines) >= 1 and lines[0].endswith('\r\n') else '\n'
         lines.insert(0, empty_line)
         lines.insert(0, self.subject + empty_line)
 
@@ -252,16 +239,11 @@ class CommitMessageCheck:
                     'First line of commit message (subject line) is too long (%d >= 93).' %
                     (len(lines[0].rstrip()))
                     )
-        else:
-            #
-            # If CVE-xxxx-xxxxx is not present in subject line, then limit
-            # length of subject line to 75 characters
-            #
-            if len(lines[0].rstrip()) >= 76:
-                self.error(
-                    'First line of commit message (subject line) is too long (%d >= 76).' %
-                    (len(lines[0].rstrip()))
-                    )
+        elif len(lines[0].rstrip()) >= 76:
+            self.error(
+                'First line of commit message (subject line) is too long (%d >= 76).' %
+                (len(lines[0].rstrip()))
+                )
 
         if count >= 1 and len(lines[0].strip()) == 0:
             self.error('First line of commit message (subject line) ' +
@@ -299,7 +281,7 @@ class CommitMessageCheck:
                 if line.strip() == '':
                     break
                 elif last_sig_line is not None:
-                    err2 = 'Add empty line before "%s"?' % last_sig_line
+                    err2 = f'Add empty line before "{last_sig_line}"?'
                     self.error('The line before the signature block ' +
                                'should be empty', err2)
                 else:
@@ -335,20 +317,20 @@ class GitDiffCheck:
             print('\nWARNING - The following binary files will be added ' +
                   'into the repository:')
             for binary in self.new_bin:
-                print('  ' + binary)
+                print(f'  {binary}')
 
     def run(self):
         line = self.lines[self.line_num]
 
-        if self.state in (PRE_PATCH, PATCH):
-            if line.startswith('diff --git'):
+        if line.startswith('diff --git'):
+            if self.state in (PRE_PATCH, PATCH):
                 self.state = START
         if self.state == PATCH:
             if line.startswith('@@ '):
                 self.state = PRE_PATCH
             elif len(line) >= 1 and line[0] not in ' -+' and \
-                 not line.startswith('\r\n') and  \
-                 not line.startswith(r'\ No newline ') and not self.binary:
+                     not line.startswith('\r\n') and  \
+                     not line.startswith(r'\ No newline ') and not self.binary:
                 for line in self.lines[self.line_num + 1:]:
                     if line.startswith('diff --git'):
                         self.format_error('diff found after end of patch')
@@ -367,17 +349,16 @@ class GitDiffCheck:
                     self.force_crlf = False
                     self.force_notabs = False
                 if self.filename.endswith('.sh') or \
-                    self.filename.startswith('BaseTools/BinWrappers/PosixLike/') or \
-                    self.filename.startswith('BaseTools/BinPipWrappers/PosixLike/') or \
-                    self.filename == 'BaseTools/BuildEnv':
+                        self.filename.startswith('BaseTools/BinWrappers/PosixLike/') or \
+                        self.filename.startswith('BaseTools/BinPipWrappers/PosixLike/') or \
+                        self.filename == 'BaseTools/BuildEnv':
                     #
                     # Do not enforce CR/LF line endings for linux shell scripts.
                     # Some linux shell scripts don't end with the ".sh" extension,
                     # they are identified by their path.
                     #
                     self.force_crlf = False
-                if self.filename == '.gitmodules' or \
-                   self.filename == 'BaseTools/Conf/diff.order':
+                if self.filename in ['.gitmodules', 'BaseTools/Conf/diff.order']:
                     #
                     # .gitmodules and diff orderfiles are used internally by git
                     # use tabs and LF line endings.  Do not enforce no tabs and
@@ -386,9 +367,9 @@ class GitDiffCheck:
                     self.force_crlf = False
                     self.force_notabs = False
                 if os.path.basename(self.filename) == 'GNUmakefile' or \
-                   os.path.basename(self.filename).lower() == 'makefile' or \
-                   os.path.splitext(self.filename)[1] == '.makefile' or \
-                   self.filename.startswith(
+                       os.path.basename(self.filename).lower() == 'makefile' or \
+                       os.path.splitext(self.filename)[1] == '.makefile' or \
+                       self.filename.startswith(
                         'BaseTools/Source/C/VfrCompile/Pccts/'):
                     self.force_notabs = False
             elif len(line.rstrip()) != 0:
@@ -399,7 +380,7 @@ class GitDiffCheck:
                 self.state = PATCH
                 self.binary = False
             elif line.startswith('GIT binary patch') or \
-                 line.startswith('Binary files'):
+                     line.startswith('Binary files'):
                 self.state = PATCH
                 self.binary = True
                 if self.is_newfile:
@@ -458,8 +439,8 @@ class GitDiffCheck:
     def added_line_error(self, msg, line):
         lines = [ msg ]
         if self.filename is not None:
-            lines.append('File: ' + self.filename)
-        lines.append('Line: ' + line)
+            lines.append(f'File: {self.filename}')
+        lines.append(f'Line: {line}')
 
         self.error(*lines)
 
@@ -481,8 +462,7 @@ class GitDiffCheck:
         stripped = line.rstrip()
 
         if self.force_crlf and eol != '\r\n' and (line.find('Subproject commit') == -1):
-            self.added_line_error('Line ending (%s) is not CRLF' % repr(eol),
-                                  line)
+            self.added_line_error(f'Line ending ({repr(eol)}) is not CRLF', line)
         if self.force_notabs and '\t' in line:
             self.added_line_error('Tab character used', line)
         if len(stripped) < len(line):
@@ -490,9 +470,14 @@ class GitDiffCheck:
 
         mo = self.old_debug_re.search(line)
         if mo is not None:
-            self.added_line_error('EFI_D_' + mo.group(1) + ' was used, '
-                                  'but DEBUG_' + mo.group(1) +
-                                  ' is now recommended', line)
+            self.added_line_error(
+                (
+                    (f'EFI_D_{mo.group(1)}' + ' was used, ' 'but DEBUG_')
+                    + mo.group(1)
+                    + ' is now recommended'
+                ),
+                line,
+            )
 
         rp_file = os.path.realpath(self.filename)
         rp_script = os.path.realpath(__file__)
@@ -512,8 +497,8 @@ class GitDiffCheck:
 
     def format_error(self, err):
         self.format_ok = False
-        err = 'Patch format error: ' + err
-        err2 = 'Line: ' + self.lines[self.line_num].rstrip()
+        err = f'Patch format error: {err}'
+        err2 = f'Line: {self.lines[self.line_num].rstrip()}'
         self.error(err, err2)
 
     def error(self, *err):
@@ -522,11 +507,9 @@ class GitDiffCheck:
         self.ok = False
         if Verbose.level < Verbose.NORMAL:
             return
-        count = 0
-        for line in err:
+        for count, line in enumerate(err):
             prefix = (' *', '  ')[count > 0]
             print(prefix, line)
-            count += 1
 
 class CheckOnePatch:
     """Checks the contents of a git email formatted patch.
@@ -556,7 +539,7 @@ class CheckOnePatch:
             if self.ok:
                 result = 'ok'
             else:
-                result = list()
+                result = []
                 if not msg_ok:
                     result.append('commit message')
                 if not diff_ok:
@@ -671,13 +654,13 @@ class CheckGitCommits:
             patch = self.read_patch_from_git(commit)
             self.ok &= CheckOnePatch(commit, patch).ok
         if not commits:
-            print("Couldn't find commit matching: '{}'".format(rev_spec))
+            print(f"Couldn't find commit matching: '{rev_spec}'")
 
     def read_commit_list_from_git(self, rev_spec, max_count):
         # Run git to get the commit patch
         cmd = [ 'rev-list', '--abbrev-commit', '--no-walk' ]
         if max_count is not None:
-            cmd.append('--max-count=' + str(max_count))
+            cmd.append(f'--max-count={str(max_count)}')
         cmd.append(rev_spec)
         out = self.run_git(*cmd)
         return out.split() if out else []
@@ -712,9 +695,8 @@ class CheckOnePatchFile:
             patch = sys.stdin.read()
             patch_filename = 'stdin'
         else:
-            f = open(patch_filename, 'rb')
-            patch = f.read().decode('utf-8', 'ignore')
-            f.close()
+            with open(patch_filename, 'rb') as f:
+                patch = f.read().decode('utf-8', 'ignore')
         if Verbose.level > Verbose.ONELINE:
             print('Checking patch file:', patch_filename)
         self.ok = CheckOnePatch(patch_filename, patch).ok
@@ -752,10 +734,7 @@ class PatchCheckApp:
         if self.count is not None:
             self.process_one_arg('HEAD')
 
-        if self.ok:
-            self.retval = 0
-        else:
-            self.retval = -1
+        self.retval = 0 if self.ok else -1
 
     def process_one_arg(self, arg):
         if len(arg) >= 2 and arg[0] == '-':
@@ -769,8 +748,9 @@ class PatchCheckApp:
 
     def parse_options(self):
         parser = argparse.ArgumentParser(description=__copyright__)
-        parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + VersionNumber)
+        parser.add_argument(
+            '--version', action='version', version=f'%(prog)s {VersionNumber}'
+        )
         parser.add_argument('patches', nargs='*',
                             help='[patch file | git rev list]')
         group = parser.add_mutually_exclusive_group()

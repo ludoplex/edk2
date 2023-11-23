@@ -87,12 +87,10 @@ class LogAgent(threading.Thread):
                 break
             if log_message.name == "tool_error":
                 self._ErrorLogger_agent.log(log_message.levelno,log_message.getMessage())
-            elif log_message.name == "tool_info":
+            elif log_message.name == "tool_info" or log_message.name != "tool_debug":
                 self._InfoLogger_agent.log(log_message.levelno,log_message.getMessage())
-            elif log_message.name == "tool_debug":
-                self._DebugLogger_agent.log(log_message.levelno,log_message.getMessage())
             else:
-                self._InfoLogger_agent.log(log_message.levelno,log_message.getMessage())
+                self._DebugLogger_agent.log(log_message.levelno,log_message.getMessage())
 
     def kill(self):
         self.log_q.put(None)
@@ -113,10 +111,10 @@ class AutoGenManager(threading.Thread):
                 if badnews == "Done":
                     fin_num += 1
                 elif badnews == "QueueEmpty":
-                    EdkLogger.debug(EdkLogger.DEBUG_9, "Worker %s: %s" % (os.getpid(), badnews))
+                    EdkLogger.debug(EdkLogger.DEBUG_9, f"Worker {os.getpid()}: {badnews}")
                     self.TerminateWorkers()
                 else:
-                    EdkLogger.debug(EdkLogger.DEBUG_9, "Worker %s: %s" % (os.getpid(), badnews))
+                    EdkLogger.debug(EdkLogger.DEBUG_9, f"Worker {os.getpid()}: {badnews}")
                     self.Status = False
                     self.TerminateWorkers()
                 if fin_num == len(self.autogen_workers):

@@ -166,24 +166,27 @@ class EfiSymbols:
             return f'{pecoff} is already loaded'
 
         pecoff = PeTeImage(cls._file, None)
-        if pecoff.pcToPeCoff(address, cls.stride, cls.range):
-            res = cls.add_symbols_for_pecoff(pecoff)
-            return f'{res}{pecoff}'
-        else:
+        if not pecoff.pcToPeCoff(address, cls.stride, cls.range):
             return f'0x{address:08x} not in a PE/COFF (or TE) image'
+        res = cls.add_symbols_for_pecoff(pecoff)
+        return f'{res}{pecoff}'
 
     @ classmethod
     def address_in_loaded_pecoff(cls, address):
         if not isinstance(address, int):
             address = int(address)
 
-        for (pecoff, module) in cls.loaded.values():
-            if (address >= pecoff.LoadAddress and
-                    address <= pecoff.EndLoadAddress):
-
-                return pecoff, module
-
-        return None, None
+        return next(
+            (
+                (pecoff, module)
+                for pecoff, module in cls.loaded.values()
+                if (
+                    address >= pecoff.LoadAddress
+                    and address <= pecoff.EndLoadAddress
+                )
+            ),
+            (None, None),
+        )
 
     @ classmethod
     def unload_symbols(cls, address):
@@ -296,9 +299,7 @@ class EfiDevicePathCommand:
 
         try:
             (options, args) = self.parser.parse_args(command_args)
-            dev_list = []
-            for arg in args:
-                dev_list.append(arg_to_address(exe_ctx.frame, arg))
+            dev_list = [arg_to_address(exe_ctx.frame, arg) for arg in args]
         except ValueError:
             # if you don't handle exceptions, passing an incorrect argument
             # to the OptionParser will cause LLDB to exit (courtesy of
@@ -472,8 +473,7 @@ class EfiTableCommand:
             return
 
         file = LldbFileObject(exe_ctx.process)
-        table = EfiConfigurationTable(file, gST.unsigned)
-        if table:
+        if table := EfiConfigurationTable(file, gST.unsigned):
             print(table, '\n')
 
 
@@ -583,10 +583,7 @@ class EfiGuidCommand:
 
         else:
             for key, value in GuidNames._dict_.items():
-                if options.verbose:
-                    extra = f'{GuidNames.to_c_guid(key)}: '
-                else:
-                    extra = ''
+                extra = f'{GuidNames.to_c_guid(key)}: ' if options.verbose else ''
                 print(f'{key}: {extra}{value}')
 
 
@@ -798,22 +795,19 @@ def CHAR16_TypeSummary(valobj, internal_dict):
             if SBError.fail or Char == 0:
                 break
             Str += chr(Char)
-        return 'L"' + Str + '"'
+        return f'L"{Str}"'
 
     if valobj.num_children == 0:
         # CHAR16
-        return "L'" + chr(valobj.unsigned) + "'"
+        return f"L'{chr(valobj.unsigned)}'"
 
-    else:
-        # CHAR16 []
-        for i in range(valobj.num_children):
-            Char = valobj.GetChildAtIndex(i).data.GetUnsignedInt16(SBError, 0)
-            if Char == 0:
-                break
-            Str += chr(Char)
-        return 'L"' + Str + '"'
-
-    return Str
+    # CHAR16 []
+    for i in range(valobj.num_children):
+        Char = valobj.GetChildAtIndex(i).data.GetUnsignedInt16(SBError, 0)
+        if Char == 0:
+            break
+        Str += chr(Char)
+    return f'L"{Str}"'
 
 
 def CHAR8_TypeSummary(valobj, internal_dict):
@@ -833,22 +827,17 @@ def CHAR8_TypeSummary(valobj, internal_dict):
             if SBError.fail or Char == 0:
                 break
             Str += chr(Char)
-        Str = '"' + Str + '"'
-        return Str
-
+        return f'"{Str}"'
     if valobj.num_children == 0:
         # CHAR8
-        return "'" + chr(valobj.unsigned) + "'"
-    else:
-        # CHAR8 []
-        for i in range(valobj.num_children):
-            Char = valobj.GetChildAtIndex(i).data.GetUnsignedInt8(SBError, 0)
-            if SBError.fail or Char == 0:
-                break
-            Str += chr(Char)
-        return '"' + Str + '"'
-
-    return Str
+        return f"'{chr(valobj.unsigned)}'"
+    # CHAR8 []
+    for i in range(valobj.num_children):
+        Char = valobj.GetChildAtIndex(i).data.GetUnsignedInt8(SBError, 0)
+        if SBError.fail or Char == 0:
+            break
+        Str += chr(Char)
+    return f'"{Str}"'
 
 
 def EFI_STATUS_TypeSummary(valobj, internal_dict):
@@ -858,9 +847,7 @@ def EFI_STATUS_TypeSummary(valobj, internal_dict):
 
 
 def EFI_TPL_TypeSummary(valobj, internal_dict):
-    if valobj.TypeIsPointerType():
-        return ''
-    return str(EfiTpl(valobj.unsigned))
+    return '' if valobj.TypeIsPointerType() else str(EfiTpl(valobj.unsigned))
 
 
 def EFI_GUID_TypeSummary(valobj, internal_dict):
@@ -1040,5 +1027,3 @@ def __lldb_init_module(debugger, internal_dict):
         debugger.HandleCommand("bt all")
 
 
-if __name__ == '__main__':
-    pass

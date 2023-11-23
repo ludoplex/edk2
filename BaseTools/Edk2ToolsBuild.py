@@ -48,10 +48,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
         txt  == plain text file logging
         md   == markdown file logging
         '''
-        if(loggerType == "con"):
-            return logging.ERROR
-        else:
-            return logging.DEBUG
+        return logging.ERROR if (loggerType == "con") else logging.DEBUG
 
     def GetLoggingFolderRelativeToRoot(self):
         ''' Return a path to folder for log files '''
@@ -93,7 +90,7 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
             f.write(content)
 
     def Go(self):
-        logging.info("Running Python version: " + str(sys.version_info))
+        logging.info(f"Running Python version: {str(sys.version_info)}")
 
         (build_env, shell_env) = self_describing_environment.BootstrapEnvironment(
             self.GetWorkspaceRoot(), self.GetActiveScopes())
@@ -101,22 +98,32 @@ class Edk2ToolsBuild(BaseAbstractInvocable):
         # # Bind our current execution environment into the shell vars.
         ph = os.path.dirname(sys.executable)
         if " " in ph:
-            ph = '"' + ph + '"'
+            ph = f'"{ph}"'
         shell_env.set_shell_var("PYTHON_HOME", ph)
         # PYTHON_COMMAND is required to be set for using edk2 python builds.
         pc = sys.executable
         if " " in pc:
-            pc = '"' + pc + '"'
+            pc = f'"{pc}"'
         shell_env.set_shell_var("PYTHON_COMMAND", pc)
 
         if self.tool_chain_tag.lower().startswith("vs"):
 
             # # Update environment with required VC vars.
-            interesting_keys = ["ExtensionSdkDir", "INCLUDE", "LIB"]
-            interesting_keys.extend(
-                ["LIBPATH", "Path", "UniversalCRTSdkDir", "UCRTVersion", "WindowsLibPath", "WindowsSdkBinPath"])
-            interesting_keys.extend(
-                ["WindowsSdkDir", "WindowsSdkVerBinPath", "WindowsSDKVersion", "VCToolsInstallDir"])
+            interesting_keys = [
+                "ExtensionSdkDir",
+                "INCLUDE",
+                "LIB",
+                "LIBPATH",
+                "Path",
+                "UniversalCRTSdkDir",
+                "UCRTVersion",
+                "WindowsLibPath",
+                "WindowsSdkBinPath",
+                "WindowsSdkDir",
+                "WindowsSdkVerBinPath",
+                "WindowsSDKVersion",
+                "VCToolsInstallDir",
+            ]
             vc_vars = QueryVcVariables(
                 interesting_keys, 'x86', vs_version=self.tool_chain_tag.lower())
             for key in vc_vars.keys():

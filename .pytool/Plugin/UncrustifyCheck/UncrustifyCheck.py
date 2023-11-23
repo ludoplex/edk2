@@ -129,7 +129,10 @@ class UncrustifyCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Check file coding standard compliance in " + packagename, packagename + ".UncrustifyCheck")
+        return (
+            f"Check file coding standard compliance in {packagename}",
+            f"{packagename}.UncrustifyCheck",
+        )
 
     def RunBuildPlugin(self, package_rel_path: str, edk2_path: Edk2Path, package_config: Dict[str, List[str]], environment_config: Any, plugin_manager: PluginManager, plugin_manager_helper: HelperFunctions, tc: JunitReportTestCase, output_stream=None) -> int:
         """
@@ -308,15 +311,15 @@ class UncrustifyCheck(ICiBuildPlugin):
                            workingdir=self._abs_workspace_path, outstream=outstream_buffer, logging_level=logging.NOTSET)
         if (exit_code != 0):
             raise UncrustifyGitIgnoreFileException(
-                f"An error occurred reading git ignore settings. This will prevent Uncrustify from running against the expected set of files.")
+                "An error occurred reading git ignore settings. This will prevent Uncrustify from running against the expected set of files."
+            )
 
         # Note: This will potentially be a large list, but at least sorted
         rel_paths = outstream_buffer.getvalue().strip().splitlines()
-        abs_paths = []
-        for path in rel_paths:
-            abs_paths.append(
-                os.path.normpath(os.path.join(self._abs_workspace_path, path)))
-        return abs_paths
+        return [
+            os.path.normpath(os.path.join(self._abs_workspace_path, path))
+            for path in rel_paths
+        ]
 
     def _get_git_submodule_paths(self) -> List[str]:
         """
@@ -329,24 +332,26 @@ class UncrustifyCheck(ICiBuildPlugin):
                 "Git is not found on this system. Git submodule paths will not be considered.")
             return []
 
-        if os.path.isfile(os.path.join(self._abs_workspace_path, ".gitmodules")):
-            logging.info(
-                f".gitmodules file found. Excluding submodules in {self._package_name}.")
-
-            outstream_buffer = StringIO()
-            exit_code = RunCmd("git", "config --file .gitmodules --get-regexp path", workingdir=self._abs_workspace_path, outstream=outstream_buffer, logging_level=logging.NOTSET)
-            if (exit_code != 0):
-                raise UncrustifyGitSubmoduleException(
-                    f".gitmodule file detected but an error occurred reading the file. Cannot proceed with unknown submodule paths.")
-
-            submodule_paths = []
-            for line in outstream_buffer.getvalue().strip().splitlines():
-                submodule_paths.append(
-                    os.path.normpath(os.path.join(self._abs_workspace_path, line.split()[1])))
-
-            return submodule_paths
-        else:
+        if not os.path.isfile(
+            os.path.join(self._abs_workspace_path, ".gitmodules")
+        ):
             return []
+        logging.info(
+            f".gitmodules file found. Excluding submodules in {self._package_name}.")
+
+        outstream_buffer = StringIO()
+        exit_code = RunCmd("git", "config --file .gitmodules --get-regexp path", workingdir=self._abs_workspace_path, outstream=outstream_buffer, logging_level=logging.NOTSET)
+        if (exit_code != 0):
+            raise UncrustifyGitSubmoduleException(
+                ".gitmodule file detected but an error occurred reading the file. Cannot proceed with unknown submodule paths."
+            )
+
+        return [
+            os.path.normpath(
+                os.path.join(self._abs_workspace_path, line.split()[1])
+            )
+            for line in outstream_buffer.getvalue().strip().splitlines()
+        ]
 
     def _get_template_file_contents(self) -> None:
         """
@@ -467,13 +472,12 @@ class UncrustifyCheck(ICiBuildPlugin):
         # Allow the ci.yaml to remove any of the pre-defined standard paths
         if "IgnoreStandardPaths" in self._package_config:
             for a in self._package_config["IgnoreStandardPaths"]:
-                if a.strip() in rel_file_paths_to_format:
-                    self._tc.LogStdOut(
-                        f"Ignoring standard path due to ci.yaml ignore: {a}")
-                    rel_file_paths_to_format.remove(a.strip())
-                else:
+                if a.strip() not in rel_file_paths_to_format:
                     raise UncrustifyInvalidIgnoreStandardPathsException(f"Invalid IgnoreStandardPaths value: {a}")
 
+                self._tc.LogStdOut(
+                    f"Ignoring standard path due to ci.yaml ignore: {a}")
+                rel_file_paths_to_format.remove(a.strip())
         # Allow the ci.yaml to specify additional include paths for this package
         if "AdditionalIncludePaths" in self._package_config:
             rel_file_paths_to_format.extend(
@@ -484,10 +488,11 @@ class UncrustifyCheck(ICiBuildPlugin):
             self._abs_file_paths_to_format.extend(
                 [str(path.resolve()) for path in pathlib.Path(self._abs_package_path).rglob(path)])
 
-        # Remove files ignore in the plugin configuration file
-        plugin_ignored_files = list(filter(self._get_files_ignored_in_config(), self._abs_file_paths_to_format))
-
-        if plugin_ignored_files:
+        if plugin_ignored_files := list(
+            filter(
+                self._get_files_ignored_in_config(), self._abs_file_paths_to_format
+            )
+        ):
             logging.info(
                 f"{self._package_name} file count before plugin ignore file exclusion: {len(self._abs_file_paths_to_format)}")
             for path in plugin_ignored_files:
@@ -497,7 +502,10 @@ class UncrustifyCheck(ICiBuildPlugin):
             logging.info(
                 f"{self._package_name} file count after plugin ignore file exclusion: {len(self._abs_file_paths_to_format)}")
 
-        if not "SkipGitExclusions" in self._package_config or not self._package_config["SkipGitExclusions"]:
+        if (
+            "SkipGitExclusions" not in self._package_config
+            or not self._package_config["SkipGitExclusions"]
+        ):
             # Remove files ignored by git
             logging.info(
                 f"{self._package_name} file count before git ignore file exclusion: {len(self._abs_file_paths_to_format)}")
@@ -530,14 +538,14 @@ class UncrustifyCheck(ICiBuildPlugin):
         """
         Initializes options that influence test case output.
         """
-        self._audit_only_mode = False
-        self._output_file_diffs = True
-
-        if "AuditOnly" in self._package_config and self._package_config["AuditOnly"]:
-            self._audit_only_mode = True
-
-        if "OutputFileDiffs" in self._package_config and not self._package_config["OutputFileDiffs"]:
-            self._output_file_diffs = False
+        self._audit_only_mode = bool(
+            "AuditOnly" in self._package_config
+            and self._package_config["AuditOnly"]
+        )
+        self._output_file_diffs = bool(
+            "OutputFileDiffs" not in self._package_config
+            or self._package_config["OutputFileDiffs"]
+        )
 
     def _log_uncrustify_app_info(self) -> None:
         """
@@ -595,9 +603,7 @@ class UncrustifyCheck(ICiBuildPlugin):
                         self._tc.LogStdError(f"A function header is missing in {os.path.relpath(pre_formatted_file, self._abs_package_path)}\n")
 
                     if self._output_file_diffs:
-                        with open(pre_formatted_file) as pf:
-                            pre_formatted_file_text = pf.read()
-
+                        pre_formatted_file_text = pathlib.Path(pre_formatted_file).read_text()
                         for line in difflib.unified_diff(pre_formatted_file_text.split('\n'), formatted_file_text.split('\n'), fromfile=pre_formatted_file, tofile=formatted_file, n=3):
                             self._tc.LogStdError(line)
 
@@ -655,6 +661,6 @@ class UncrustifyCheck(ICiBuildPlugin):
         self._tc.LogStdOut(execution_summary)
         logging.info(execution_summary)
 
-        if self._app_exit_code != 0 and self._app_exit_code != 1:
+        if self._app_exit_code not in [0, 1]:
             raise UncrustifyAppExecutionException(
                 f"Error {str(self._app_exit_code)} returned from Uncrustify:\n\n{str(self._app_output)}")

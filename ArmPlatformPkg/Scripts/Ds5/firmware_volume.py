@@ -67,14 +67,14 @@ class EfiSectionTE:
         debug_dir_entry_rva -= stripped_size
 
         debug_type = self.ec.getMemoryService().readMemory32(self.base_te + debug_dir_entry_rva + 0xC)
-        if (debug_type != 0xdf) and (debug_type != EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW):
+        if debug_type not in [0xDF, EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW]:
             raise Exception("EfiFileSectionTE","Debug type is not dwarf")
 
         debug_rva = self.ec.getMemoryService().readMemory32(self.base_te + debug_dir_entry_rva + 0x14)
         debug_rva -= stripped_size
 
         dwarf_sig = struct.unpack("cccc", self.ec.getMemoryService().read(self.base_te + debug_rva, 4, 32))
-        if (dwarf_sig != 0x66727764) and (dwarf_sig != FirmwareFile.CONST_NB10_SIGNATURE):
+        if dwarf_sig not in [0x66727764, FirmwareFile.CONST_NB10_SIGNATURE]:
             raise Exception("EfiFileSectionTE","Dwarf debug signature not found")
 
         if dwarf_sig == 0x66727764:
@@ -82,7 +82,7 @@ class EfiSectionTE:
         else:
             filename = self.base_te + debug_rva + 0x10
         filename = struct.unpack("400s", self.ec.getMemoryService().read(filename, 400, 32))[0]
-        return filename[0:string.find(filename,'\0')]
+        return filename[:string.find(filename,'\0')]
 
     def get_debug_elfbase(self):
         stripped_size = struct.unpack("<H", self.ec.getMemoryService().read(self.base_te + 0x6, 2, 32))[0]
@@ -105,14 +105,14 @@ class EfiSectionPE32:
             raise Exception("EfiFileSectionPE32","No Debug Directory")
 
         debug_type = self.ec.getMemoryService().readMemory32(self.base_pe32 + debug_dir_entry_rva + 0xC)
-        if (debug_type != 0xdf) and (debug_type != EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW):
+        if debug_type not in [0xDF, EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW]:
             raise Exception("EfiFileSectionPE32","Debug type is not dwarf")
 
 
         debug_rva = self.ec.getMemoryService().readMemory32(self.base_pe32 + debug_dir_entry_rva + 0x14)
 
         dwarf_sig = struct.unpack("cccc", self.ec.getMemoryService().read(str(self.base_pe32 + debug_rva), 4, 32))
-        if (dwarf_sig != 0x66727764) and (dwarf_sig != FirmwareFile.CONST_NB10_SIGNATURE):
+        if dwarf_sig not in [0x66727764, FirmwareFile.CONST_NB10_SIGNATURE]:
             raise Exception("EfiFileSectionPE32","Dwarf debug signature not found")
 
         if dwarf_sig == 0x66727764:
@@ -120,7 +120,7 @@ class EfiSectionPE32:
         else:
             filename = self.base_pe32 + debug_rva + 0x10
         filename = struct.unpack("400s", self.ec.getMemoryService().read(str(filename), 400, 32))[0]
-        return filename[0:string.find(filename,'\0')]
+        return filename[:string.find(filename,'\0')]
 
     def get_debug_elfbase(self):
         return self.base_pe32
@@ -140,14 +140,14 @@ class EfiSectionPE64:
             raise Exception("EfiFileSectionPE64","No Debug Directory")
 
         debug_type = self.ec.getMemoryService().readMemory32(self.base_pe64 + debug_dir_entry_rva + 0xC)
-        if (debug_type != 0xdf) and (debug_type != EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW):
+        if debug_type not in [0xDF, EfiFileSection.EFI_IMAGE_DEBUG_TYPE_CODEVIEW]:
             raise Exception("EfiFileSectionPE64","Debug type is not dwarf")
 
 
         debug_rva = self.ec.getMemoryService().readMemory32(self.base_pe64 + debug_dir_entry_rva + 0x14)
 
         dwarf_sig = struct.unpack("cccc", self.ec.getMemoryService().read(str(self.base_pe64 + debug_rva), 4, 32))
-        if (dwarf_sig != 0x66727764) and (dwarf_sig != FirmwareFile.CONST_NB10_SIGNATURE):
+        if dwarf_sig not in [0x66727764, FirmwareFile.CONST_NB10_SIGNATURE]:
             raise Exception("EfiFileSectionPE64","Dwarf debug signature not found")
 
         if dwarf_sig == 0x66727764:
@@ -155,7 +155,7 @@ class EfiSectionPE64:
         else:
             filename = self.base_pe64 + debug_rva + 0x10
         filename = struct.unpack("400s", self.ec.getMemoryService().read(str(filename), 400, 32))[0]
-        return filename[0:string.find(filename,'\0')]
+        return filename[:string.find(filename,'\0')]
 
     def get_debug_elfbase(self):
         return self.base_pe64
@@ -198,8 +198,7 @@ class FirmwareFile:
     def get_state(self):
         state = self.ec.getMemoryService().readMemory8(self.base + 0x17)
 
-        polarity = self.fv.get_polarity()
-        if polarity:
+        if polarity := self.fv.get_polarity():
             state = ~state
 
         highest_bit = 0x80;
@@ -209,7 +208,7 @@ class FirmwareFile:
         return highest_bit
 
     def get_next_section(self, section=None):
-        if section == None:
+        if section is None:
             if self.get_type() != FirmwareFile.EFI_FV_FILETYPE_FFS_MIN:
                 section_base = self.get_base() + 0x18;
             else:
@@ -252,13 +251,10 @@ class FirmwareVolume:
 
     def get_polarity(self):
         attributes = self.get_attributes()
-        if attributes & FirmwareVolume.EFI_FVB2_ERASE_POLARITY:
-            return 1
-        else:
-            return 0
+        return 1 if attributes & FirmwareVolume.EFI_FVB2_ERASE_POLARITY else 0
 
     def get_next_ffs(self, ffs=None):
-        if ffs == None:
+        if ffs is None:
             # Get the offset of the first FFS file from the FV header
             ffs_base = self.fv_base +  self.ec.getMemoryService().readMemory16(self.fv_base + 0x30)
         else:
@@ -282,7 +278,10 @@ class FirmwareVolume:
             section = ffs.get_next_section()
             while section != None:
                 type = section.get_type()
-                if (type == EfiFileSection.EFI_SECTION_TE) or (type == EfiFileSection.EFI_SECTION_PE32):
+                if type in [
+                    EfiFileSection.EFI_SECTION_TE,
+                    EfiFileSection.EFI_SECTION_PE32,
+                ]:
                     self.DebugInfos.append((section.get_base(), section.get_size(), section.get_type()))
                 section = ffs.get_next_section(section)
             ffs = self.get_next_ffs(ffs)

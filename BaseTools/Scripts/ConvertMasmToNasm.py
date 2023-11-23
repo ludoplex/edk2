@@ -40,11 +40,7 @@ class CommonUtils:
     __usage__ = "%prog [options] source.asm [destination.nasm]"
 
     def __init__(self, clone=None):
-        if clone is None:
-            self.args = self.ProcessCommandLine()
-        else:
-            self.args = clone.args
-
+        self.args = self.ProcessCommandLine() if clone is None else clone.args
         self.unsupportedSyntaxSeen = False
         self.src = self.args.source
         self.keep = self.args.keep
@@ -67,8 +63,9 @@ class CommonUtils:
 
     def ProcessCommandLine(self):
         parser = argparse.ArgumentParser(description=self.__copyright__)
-        parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + self.VersionNumber)
+        parser.add_argument(
+            '--version', action='version', version=f'%(prog)s {self.VersionNumber}'
+        )
         parser.add_argument("-q", "--quiet", action="store_true",
                             help="Disable all messages except FATAL ERRORS.")
         parser.add_argument("--git", action="store_true",
@@ -140,14 +137,11 @@ class CommonUtils:
         cmd = ('git', 'config', 'user.email')
         email = self.RunAndCaptureOutput(cmd).strip()
         if name.find(',') >= 0:
-            name = '"' + name + '"'
-        return name + ' <' + email + '>'
+            name = f'"{name}"'
+        return f'{name} <{email}>'
 
     def RunAndCaptureOutput(self, cmd, checkExitCode=True, pipeIn=None):
-        if pipeIn:
-            subpStdin = subprocess.PIPE
-        else:
-            subpStdin = None
+        subpStdin = subprocess.PIPE if pipeIn else None
         p = subprocess.Popen(args=cmd, stdout=subprocess.PIPE, stdin=subpStdin)
         (stdout, stderr) = p.communicate(pipeIn)
         if checkExitCode:
@@ -223,7 +217,7 @@ class ConvertAsmFile(CommonUtils):
         self.unsupportedSyntaxSeen = False
         self.inputFilename = inputFile
         if not outputFile:
-            outputFile = os.path.splitext(inputFile)[0] + '.nasm'
+            outputFile = f'{os.path.splitext(inputFile)[0]}.nasm'
         self.outputFilename = outputFile
 
         fullSrc = os.path.realpath(inputFile)
@@ -249,12 +243,12 @@ class ConvertAsmFile(CommonUtils):
             if sys.version_info >= (3, 0):
                 output_data = output_data.decode('utf-8', 'ignore')
             sys.stdout.write(output_data)
-            self.output.close()
         else:
             f = io.open(self.outputFilename, 'wb')
             f.write(self.output.getvalue())
             f.close()
-            self.output.close()
+
+        self.output.close()
 
     endOfLineRe = re.compile(r'''
                                  \s* ( ; .* )? \n $
@@ -279,10 +273,7 @@ class ConvertAsmFile(CommonUtils):
             self.indent = mo.group()
             lineWithoutBeginning = line[len(self.indent):]
             mo = self.endOfLineRe.search(lineWithoutBeginning)
-            if mo is None:
-                endOfLine = ''
-            else:
-                endOfLine = mo.group()
+            endOfLine = '' if mo is None else mo.group()
             oldAsm = line[len(self.indent):len(line) - len(endOfLine)]
             self.originalLine = line.rstrip()
             if line.strip() == '':
@@ -404,30 +395,26 @@ class ConvertAsmFile(CommonUtils):
         endOfLine = endOfLine.replace(self.inputFileBase, self.outputFileBase)
 
         oldOp = oldAsm.split()
-        if len(oldOp) >= 1:
-            oldOp = oldOp[0]
-        else:
-            oldOp = ''
-
+        oldOp = oldOp[0] if len(oldOp) >= 1 else ''
         if oldAsm == '':
             newAsm = oldAsm
-            self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
+            self.EmitAsmWithComment(newAsm, newAsm, endOfLine)
         elif oldOp in ('#include', ):
             newAsm = oldAsm
-            self.EmitLine(oldAsm + endOfLine)
+            self.EmitLine(newAsm + endOfLine)
         elif oldOp.lower() in ('end', 'title', 'text'):
             newAsm = ''
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif oldAsm.lower() == '@@:':
             self.anonLabelCount += 1
-            self.EmitLine(self.anonLabel(self.anonLabelCount) + ':')
+            self.EmitLine(f'{self.anonLabel(self.anonLabelCount)}:')
         elif self.MatchAndSetMo(self.ignoreRe, oldAsm):
             newAsm = ''
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif oldAsm.lower() == 'ret':
             for i in range(len(self.uses) - 1, -1, -1):
                 register = self.uses[i]
-                self.EmitNewContent('pop     ' + register)
+                self.EmitNewContent(f'pop     {register}')
             newAsm = 'ret'
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
             self.uses = tuple()
@@ -443,10 +430,10 @@ class ConvertAsmFile(CommonUtils):
             newAsm = '%%define %s %s' % (equ, self.mo.group(2))
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif self.MatchAndSetMo(self.externRe, oldAsm) or \
-                self.MatchAndSetMo(self.protoRe, oldAsm):
+                    self.MatchAndSetMo(self.protoRe, oldAsm):
             extern = self.mo.group(1)
             self.NewGlobal(extern)
-            newAsm = 'extern ' + extern
+            newAsm = f'extern {extern}'
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif self.MatchAndSetMo(self.externdefRe, oldAsm):
             newAsm = ''
@@ -460,32 +447,23 @@ class ConvertAsmFile(CommonUtils):
         elif self.MatchAndSetMo(self.sectionDeclRe, oldAsm):
             name = self.mo.group(1)
             ty = self.mo.group(2)
-            if ty.lower() == 'section':
-                newAsm = '.' + name
-            else:
-                newAsm = ''
+            newAsm = f'.{name}' if ty.lower() == 'section' else ''
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif self.MatchAndSetMo(self.procDeclRe, oldAsm):
             proc = self.proc = self.mo.group(1)
             visibility = self.mo.group(2)
-            if visibility is None:
-                visibility = ''
-            else:
-                visibility = visibility.lower()
+            visibility = '' if visibility is None else visibility.lower()
             if visibility != 'private':
                 self.NewGlobal(self.proc)
-                proc = 'ASM_PFX(' + proc + ')'
-                self.EmitNewContent('global ' + proc)
-            newAsm = proc + ':'
+                proc = f'ASM_PFX({proc})'
+                self.EmitNewContent(f'global {proc}')
+            newAsm = f'{proc}:'
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
             uses = self.mo.group(3)
-            if uses is not None:
-                uses = tuple(filter(None, uses.split()))
-            else:
-                uses = tuple()
+            uses = tuple(filter(None, uses.split())) if uses is not None else tuple()
             self.uses = uses
             for register in self.uses:
-                self.EmitNewContent('    push    ' + register)
+                self.EmitNewContent(f'    push    {register}')
         elif self.MatchAndSetMo(self.procEndRe, oldAsm):
             newAsm = ''
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
@@ -494,11 +472,11 @@ class ConvertAsmFile(CommonUtils):
             publics = tuple(map(lambda p: p.split(':')[0].strip(), publics))
             for i in range(len(publics) - 1):
                 name = publics[i]
-                self.EmitNewContent('global ASM_PFX(%s)' % publics[i])
+                self.EmitNewContent(f'global ASM_PFX({name})')
                 self.NewGlobal(name)
             name = publics[-1]
             self.NewGlobal(name)
-            newAsm = 'global ASM_PFX(%s)' % name
+            newAsm = f'global ASM_PFX({name})'
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         elif self.MatchAndSetMo(self.defineDataRe, oldAsm):
             name = self.mo.group(1)
@@ -506,7 +484,7 @@ class ConvertAsmFile(CommonUtils):
             value = self.mo.group(3)
             if value == '?':
                 value = 0
-            newAsm = '%s: %s %s' % (name, ty, value)
+            newAsm = f'{name}: {ty} {value}'
             newAsm = self.CommonConversions(newAsm)
             self.EmitAsmWithComment(oldAsm, newAsm, endOfLine)
         else:
@@ -538,10 +516,10 @@ class ConvertAsmFile(CommonUtils):
         newLine = (self.indent + new).rstrip()
         if self.diff:
             if old is None:
-                print('+%s' % newLine)
+                print(f'+{newLine}')
             elif newLine != old:
-                print('-%s' % old)
-                print('+%s' % newLine)
+                print(f'-{old}')
+                print(f'+{newLine}')
             else:
                 print('', newLine)
         if newLine != '':
@@ -576,7 +554,7 @@ class ConvertAsmFile(CommonUtils):
         if emitNewLine:
             self.EmitLine(newLine.rstrip())
         elif self.diff:
-            print('-%s' % self.originalLine)
+            print(f'-{self.originalLine}')
 
     leaRe = re.compile(r'''
                            (lea \s+) ([\w@][\w@0-9]*) \s* , \s* (\S (?:.*\S)?)
@@ -587,12 +565,12 @@ class ConvertAsmFile(CommonUtils):
 
     def ConvertLea(self, oldAsm):
         newAsm = oldAsm
-        if self.MatchAndSetMo(self.leaRe, oldAsm):
+        if self.MatchAndSetMo(self.leaRe, newAsm):
             lea = self.mo.group(1)
             dst = self.mo.group(2)
             src = self.mo.group(3)
             if src.find('[') < 0:
-                src = '[' + src + ']'
+                src = f'[{src}]'
             newAsm = lea + dst + ', ' + src
         newAsm = self.CommonConversions(newAsm)
         return newAsm
@@ -626,7 +604,7 @@ class ConvertAsmFile(CommonUtils):
     def ConvertLabelByte(self, oldAsm):
         newAsm = oldAsm
         if self.SearchAndSetMo(self.labelByteRe, newAsm):
-            newAsm = newAsm[:self.mo.start(0)] + ':' + newAsm[self.mo.end(0):]
+            newAsm = f'{newAsm[:self.mo.start(0)]}:{newAsm[self.mo.end(0):]}'
         return newAsm
 
     unaryBitwiseOpRe = re.compile(r'''
@@ -685,13 +663,13 @@ class ConvertAsmFile(CommonUtils):
     def ConvertSection(self, oldAsm):
         newAsm = oldAsm
         if self.MatchAndSetMo(self.sectionRe, newAsm) or \
-           self.MatchAndSetMo(self.segmentRe, newAsm):
+               self.MatchAndSetMo(self.segmentRe, newAsm):
             name = self.mo.group(1).lower()
             if name == 'code':
                 if self.x64:
                     self.EmitLine('DEFAULT REL')
                 name = 'text'
-            newAsm = 'SECTION .' + name
+            newAsm = f'SECTION .{name}'
         return newAsm
 
     fwordRe = re.compile(r'''
@@ -730,8 +708,8 @@ class ConvertAsmFile(CommonUtils):
         self.unsupportedSyntaxSeen = True
         newAsm = '%error conversion unsupported'
         if message:
-            newAsm += '; ' + message
-        newAsm += ': ' + asm
+            newAsm += f'; {message}'
+        newAsm += f': {asm}'
         return newAsm
 
 
@@ -761,7 +739,7 @@ class ConvertInfFile(CommonUtils):
             if self.MatchAndSetMo(self.infSrcRe, line):
                 src = self.mo.group(1)
                 srcExt = self.mo.group(2)
-                dst = os.path.splitext(src)[0] + '.nasm'
+                dst = f'{os.path.splitext(src)[0]}.nasm'
                 fullDst = os.path.join(self.dir, dst)
                 if src not in srcToDst and not os.path.exists(fullDst):
                     srcToDst[src] = dst
@@ -829,7 +807,7 @@ class ConvertInfFile(CommonUtils):
             else:
                 if didSomething:
                     self.ConversionFinished(dst)
-        if len(notConverted) > 0 and not self.args.quiet:
+        if notConverted and not self.args.quiet:
             for dst in notConverted:
                 reldst = self.RootRelative(dst)
                 print('Unabled to convert', reldst)
@@ -838,7 +816,7 @@ class ConvertInfFile(CommonUtils):
 
     def UpdateInfAsmFile(self, dst, IgnoreMissingAsm=False):
         infPath = os.path.split(os.path.realpath(self.inf))[0]
-        asmSrc = os.path.splitext(dst)[0] + '.asm'
+        asmSrc = f'{os.path.splitext(dst)[0]}.asm'
         fullSrc = os.path.join(infPath, asmSrc)
         fullDst = os.path.join(infPath, dst)
         srcParentDir = os.path.basename(os.path.split(fullSrc)[0])
@@ -852,7 +830,7 @@ class ConvertInfFile(CommonUtils):
             self.unsupportedSyntaxSeen = conv.unsupportedSyntaxSeen
 
         fileChanged = False
-        recentSources = list()
+        recentSources = []
         i = 0
         while i < len(self.lines):
             line = self.lines[i].rstrip()
@@ -875,22 +853,22 @@ class ConvertInfFile(CommonUtils):
                         recentSources.append(updatedLine.strip())
                         i += 1
                         if self.diff:
-                            print('+%s' % updatedLine)
+                            print(f'+{updatedLine}')
                     if self.diff:
                         print('', line)
                 else:
                     if self.diff:
-                        print('-%s' % line)
+                        print(f'-{line}')
                     if updatedLine.strip() in recentSources:
                         self.lines[i] = None
                     else:
                         self.lines[i] = updatedLine + '\n'
                         recentSources.append(updatedLine.strip())
                         if self.diff:
-                            print('+%s' % updatedLine)
+                            print(f'+{updatedLine}')
             else:
                 if len(recentSources) > 0:
-                    recentSources = list()
+                    recentSources = []
                 if self.diff:
                     print('', line)
 
@@ -913,7 +891,7 @@ class ConvertInfFile(CommonUtils):
             self.FileUpdated(self.inf)
 
     def ConversionFinished(self, dst):
-        asmSrc = os.path.splitext(dst)[0] + '.asm'
+        asmSrc = f'{os.path.splitext(dst)[0]}.asm'
         self.FileConversionFinished(
             self.packageName, self.moduleName, asmSrc, dst)
 
@@ -956,7 +934,7 @@ class ConvertInfFiles(CommonUtils):
             else:
                 if didSomething:
                     inf.ConversionFinished(reldst)
-        if len(notConverted) > 0 and not self.args.quiet:
+        if notConverted and not self.args.quiet:
             for dst in notConverted:
                 reldst = self.RootRelative(dst)
                 print('Unabled to convert', reldst)
@@ -972,7 +950,7 @@ class ConvertDirectories(CommonUtils):
         self.ConvertInfAndAsmFiles()
 
     def ConvertInfAndAsmFiles(self):
-        infs = list()
+        infs = []
         for path in self.paths:
             assert(os.path.exists(path))
         for path in self.paths:
@@ -994,12 +972,12 @@ class ConvertAsmApp(CommonUtils):
         CommonUtils.__init__(self)
 
         src = self.args.source
-        dst = self.args.dest
         if self.infmode:
             ConvertInfFiles((src,), self)
         elif self.dirmode:
             ConvertDirectories((src,), self)
-        elif not self.dirmode:
+        else:
+            dst = self.args.dest
             ConvertAsmFile(src, dst, self)
 
 ConvertAsmApp()

@@ -42,8 +42,10 @@ class HostUnitTestCompilerPlugin(ICiBuildPlugin):
         num,types = self.__GetHostUnitTestArch(environment)
         types = types.replace(" ", "_")
 
-        return ("Compile and Run Host-Based UnitTests for " + packagename + " on arch " + types,
-                packagename + ".HostUnitTestCompiler." + types)
+        return (
+            f"Compile and Run Host-Based UnitTests for {packagename} on arch {types}",
+            f"{packagename}.HostUnitTestCompiler.{types}",
+        )
 
     def RunsOnTargetList(self):
         return ["NOOPT"]

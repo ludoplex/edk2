@@ -45,24 +45,16 @@ class ConvertOneArg:
             self.ok &= self.convert_one_file(source)
 
     def convert_one_file(self, source):
-        if self.utf8:
-            new_enc, old_enc = 'utf-8', 'utf-16'
-        else:
-            new_enc, old_enc = 'utf-16', 'utf-8'
-        #
-        # Read file
-        #
-        f = open(source, mode='rb')
-        file_content = f.read()
-        f.close()
-
+        new_enc, old_enc = ('utf-8', 'utf-16') if self.utf8 else ('utf-16', 'utf-8')
+        with open(source, mode='rb') as f:
+            file_content = f.read()
         #
         # Detect UTF-16 Byte Order Mark at beginning of file.
         #
         bom = (file_content.startswith(codecs.BOM_UTF16_BE) or
                file_content.startswith(codecs.BOM_UTF16_LE))
         if bom != self.utf8:
-            print("%s: already %s" % (source, new_enc))
+            print(f"{source}: already {new_enc}")
             return True
 
         #
@@ -75,14 +67,9 @@ class ConvertOneArg:
         #
         new_content = str_content.encode(new_enc, 'ignore')
 
-        #
-        # Write converted data back to file
-        #
-        f = open(source, mode='wb')
-        f.write(new_content)
-        f.close()
-
-        print(source + ": converted, size", len(file_content), '=>', len(new_content))
+        with open(source, mode='wb') as f:
+            f.write(new_content)
+        print(f"{source}: converted, size", len(file_content), '=>', len(new_content))
         return True
 
 
@@ -97,18 +84,16 @@ class ConvertUniApp:
         for patch in sources:
             self.process_one_arg(patch)
 
-        if self.ok:
-            self.retval = 0
-        else:
-            self.retval = -1
+        self.retval = 0 if self.ok else -1
 
     def process_one_arg(self, arg):
         self.ok &= ConvertOneArg(self.utf8, arg).ok
 
     def parse_options(self):
         parser = argparse.ArgumentParser(description=__copyright__)
-        parser.add_argument('--version', action='version',
-                            version='%(prog)s ' + VersionNumber)
+        parser.add_argument(
+            '--version', action='version', version=f'%(prog)s {VersionNumber}'
+        )
         parser.add_argument('source', nargs='+',
                             help='[uni file | directory]')
         group = parser.add_mutually_exclusive_group()

@@ -796,7 +796,7 @@ def DynExPcdTokenNumberMapping(Info, AutoGenH):
         if Pcd.Type in PCD_DYNAMIC_EX_TYPE_SET:
             ExTokenCNameList.append(Pcd.TokenCName)
             PcdExList.append(Pcd)
-    if len(ExTokenCNameList) == 0:
+    if not ExTokenCNameList:
         return
     AutoGenH.Append('\n#define COMPAREGUID(Guid1, Guid2) (BOOLEAN)(*(CONST UINT64*)Guid1 == *(CONST UINT64*)Guid2 && *((CONST UINT64*)Guid1 + 1) == *((CONST UINT64*)Guid2 + 1))\n')
     # AutoGen for each PCD listed in a [PcdEx] section of a Module/Lib INF file.
@@ -818,11 +818,8 @@ def DynExPcdTokenNumberMapping(Info, AutoGenH):
                 Index = Index + 1
                 if Index == 1:
                     AutoGenH.Append('\n#define __PCD_%s_ADDR_CMP(GuidPtr)  (' % (RealTokenCName))
-                    AutoGenH.Append('\\\n  (GuidPtr == &%s) ? _PCD_TOKEN_%s_%s:'
-                                    % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
-                else:
-                    AutoGenH.Append('\\\n  (GuidPtr == &%s) ? _PCD_TOKEN_%s_%s:'
-                                    % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
+                AutoGenH.Append('\\\n  (GuidPtr == &%s) ? _PCD_TOKEN_%s_%s:'
+                                % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
                 if Index == Count:
                     AutoGenH.Append('0 \\\n  )\n')
                 TokenCNameList.add(TokenCName)
@@ -844,11 +841,8 @@ def DynExPcdTokenNumberMapping(Info, AutoGenH):
                 if Index == 1:
                     AutoGenH.Append('\n#define __PCD_%s_VAL_CMP(GuidPtr)  (' % (RealTokenCName))
                     AutoGenH.Append('\\\n  (GuidPtr == NULL) ? 0:')
-                    AutoGenH.Append('\\\n  COMPAREGUID (GuidPtr, &%s) ? _PCD_TOKEN_%s_%s:'
-                                    % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
-                else:
-                    AutoGenH.Append('\\\n  COMPAREGUID (GuidPtr, &%s) ? _PCD_TOKEN_%s_%s:'
-                                    % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
+                AutoGenH.Append('\\\n  COMPAREGUID (GuidPtr, &%s) ? _PCD_TOKEN_%s_%s:'
+                                % (Pcd.TokenSpaceGuidCName, Pcd.TokenSpaceGuidCName, RealTokenCName))
                 if Index == Count:
                     AutoGenH.Append('0 \\\n  )\n')
                     # Autogen internal worker macro to compare GUIDs.  Guid1 is a pointer to a GUID.

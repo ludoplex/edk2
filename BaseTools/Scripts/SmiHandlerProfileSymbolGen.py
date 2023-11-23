@@ -56,19 +56,14 @@ class Symbols:
         try:
             nmCommand = "nm"
             nmLineOption = "-l"
-            print("parsing (debug) - " + pdbName)
-            os.system ('%s %s %s > nmDump.line.log' % (nmCommand, nmLineOption, pdbName))
+            print(f"parsing (debug) - {pdbName}")
+            os.system(f'{nmCommand} {nmLineOption} {pdbName} > nmDump.line.log')
         except :
             print('ERROR: nm command not available.  Please verify PATH')
             return
 
-        #
-        # parse line
-        #
-        linefile = open("nmDump.line.log")
-        reportLines = linefile.readlines()
-        linefile.close()
-
+        with open("nmDump.line.log") as linefile:
+            reportLines = linefile.readlines()
         # 000113ca T AllocatePool c:\home\edk-ii\MdePkg\Library\UefiMemoryAllocationLib\MemoryAllocationLib.c:399
         patchLineFileMatchString = "([0-9a-fA-F]*)\s+[T|D|t|d]\s+(\w+)\s*((?:[a-zA-Z]:)?[\w+\-./_a-zA-Z0-9\\\\]*):?([0-9]*)"
 
@@ -78,10 +73,7 @@ class Symbols:
                 rva = int (match.group(1), 16)
                 functionName = match.group(2)
                 sourceName = match.group(3)
-                if cmp (match.group(4), "") != 0 :
-                    lineName = int (match.group(4))
-                else :
-                    lineName = 0
+                lineName = int (match.group(4)) if cmp (match.group(4), "") != 0 else 0
                 self.listLineAddress.append ([rva, functionName, lineName, sourceName])
 
         self.lineCount = len (self.listLineAddress)
@@ -98,20 +90,15 @@ class Symbols:
             DIA2DumpCommand = "Dia2Dump.exe"
             #DIA2SymbolOption = "-p"
             DIA2LinesOption = "-l"
-            print("parsing (pdb) - " + pdbName)
+            print(f"parsing (pdb) - {pdbName}")
             #os.system ('%s %s %s > DIA2Dump.symbol.log' % (DIA2DumpCommand, DIA2SymbolOption, pdbName))
-            os.system ('%s %s %s > DIA2Dump.line.log' % (DIA2DumpCommand, DIA2LinesOption, pdbName))
+            os.system(f'{DIA2DumpCommand} {DIA2LinesOption} {pdbName} > DIA2Dump.line.log')
         except :
             print('ERROR: DIA2Dump command not available.  Please verify PATH')
             return
 
-        #
-        # parse line
-        #
-        linefile = open("DIA2Dump.line.log")
-        reportLines = linefile.readlines()
-        linefile.close()
-
+        with open("DIA2Dump.line.log") as linefile:
+            reportLines = linefile.readlines()
         #   ** GetDebugPrintErrorLevel
         # line 32 at [0000C790][0001:0000B790], len = 0x3 c:\home\edk-ii\mdepkg\library\basedebugprinterrorlevellib\basedebugprinterrorlevellib.c (MD5: 687C0AE564079D35D56ED5D84A6164CC)
         # line 36 at [0000C793][0001:0000B793], len = 0x5
@@ -152,18 +139,19 @@ symbolName = ""
 def getSymbolName(driverName, rva):
     global symbolsFile
 
-    try :
+    try:
         symbolList = symbolsFile.symbolsTable[driverName]
-        if symbolList is not None:
-            return symbolList.getSymbol (rva)
-        else:
-            return []
+        return symbolList.getSymbol (rva) if symbolList is not None else []
     except Exception:
         return []
 
 def myOptionParser():
     usage = "%prog [--version] [-h] [--help] [-i inputfile [-o outputfile] [-g guidreffile]]"
-    Parser = OptionParser(usage=usage, description=__copyright__, version="%prog " + str(versionNumber))
+    Parser = OptionParser(
+        usage=usage,
+        description=__copyright__,
+        version=f"%prog {str(versionNumber)}",
+    )
     Parser.add_option("-i", "--inputfile", dest="inputfilename", type="string", help="The input memory profile info file output from MemoryProfileInfo application in MdeModulePkg")
     Parser.add_option("-o", "--outputfile", dest="outputfilename", type="string", help="The output memory profile info file with symbol, MemoryProfileInfoSymbol.txt will be used if it is not specified")
     Parser.add_option("-g", "--guidref", dest="guidreffilename", type="string", help="The input guid ref file output from build")
@@ -227,17 +215,17 @@ def main():
 
     symbolsFile = SymbolsFile()
 
-    try :
+    try:
         DOMTree = xml.dom.minidom.parse(Options.inputfilename)
     except Exception:
-        print("fail to open input " + Options.inputfilename)
+        print(f"fail to open input {Options.inputfilename}")
         return 1
 
     if Options.guidreffilename is not None:
-        try :
+        try:
             guidreffile = open(Options.guidreffilename)
         except Exception:
-            print("fail to open guidref" + Options.guidreffilename)
+            print(f"fail to open guidref{Options.guidreffilename}")
             return 1
         genGuidString(guidreffile)
         guidreffile.close()
@@ -272,7 +260,7 @@ def main():
 
                     Handler = smiHandler.getElementsByTagName("Handler")
                     RVA = Handler[0].getElementsByTagName("RVA")
-                    print("    Handler RVA: %s" % RVA[0].childNodes[0].data)
+                    print(f"    Handler RVA: {RVA[0].childNodes[0].data}")
 
                     if (len(RVA)) >= 1:
                         rvaName = RVA[0].childNodes[0].data
@@ -284,7 +272,7 @@ def main():
 
                     Caller = smiHandler.getElementsByTagName("Caller")
                     RVA = Caller[0].getElementsByTagName("RVA")
-                    print("    Caller RVA: %s" % RVA[0].childNodes[0].data)
+                    print(f"    Caller RVA: {RVA[0].childNodes[0].data}")
 
                     if (len(RVA)) >= 1:
                         rvaName = RVA[0].childNodes[0].data
@@ -294,10 +282,10 @@ def main():
                             SymbolNode = createSym(symbolName)
                             Caller[0].appendChild(SymbolNode)
 
-    try :
+    try:
         newfile = open(Options.outputfilename, "w")
     except Exception:
-        print("fail to open output" + Options.outputfilename)
+        print(f"fail to open output{Options.outputfilename}")
         return 1
 
     newfile.write(DOMTree.toprettyxml(indent = "\t", newl = "\n", encoding = "utf-8"))

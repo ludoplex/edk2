@@ -46,7 +46,10 @@ class EccCheck(ICiBuildPlugin):
                 a tuple containing the testcase name and the classname
                 (testcasename, classname)
         """
-        return ("Check for efi coding style for " + packagename, packagename + ".EccCheck")
+        return (
+            f"Check for efi coding style for {packagename}",
+            f"{packagename}.EccCheck",
+        )
 
     ##
     # External function of plugin.  This function is used to perform the task of the ci_build_plugin Plugin
@@ -135,14 +138,13 @@ class EccCheck(ICiBuildPlugin):
                 shutil.rmtree(temp_path)
             tc.SetFailed("EccCheck exception for {0}".format(packagename), "CHECK FAILED")
             raise
-            return 1
 
     def GetDiff(self, pkg: str, temp_diff_output: str) -> List[str]:
         patch = []
         #
         # Generate unified diff between origin/master and HEAD.
         #
-        params = "diff --output={} --unified=0 origin/master HEAD".format(temp_diff_output)
+        params = f"diff --output={temp_diff_output} --unified=0 origin/master HEAD"
         RunCmd("git", params)
         with open(temp_diff_output) as file:
             patch = file.read().strip().split('\n')
@@ -160,7 +162,7 @@ class EccCheck(ICiBuildPlugin):
         #   M       MdeModulePkg/Application/CapsuleApp/CapsuleApp.h
         #   M       MdeModulePkg/Application/UiApp/FrontPage.h
         #
-        params = "diff --output={} --diff-filter=dr --name-status origin/master HEAD".format(temp_diff_output)
+        params = f"diff --output={temp_diff_output} --diff-filter=dr --name-status origin/master HEAD"
         RunCmd("git", params)
         dir_list = []
         with open(temp_diff_output) as file:
@@ -267,9 +269,8 @@ class EccCheck(ICiBuildPlugin):
         if not os.path.exists (modify_file_path):
             return comment_range
         with open(modify_file_path) as f:
-            line_no = 1
             Start = False
-            for line in f:
+            for line_no, line in enumerate(f, start=1):
                 if line.startswith('/**'):
                     start_no = line_no
                     Start = True
@@ -277,8 +278,6 @@ class EccCheck(ICiBuildPlugin):
                     end_no = line_no
                     Start = False
                     comment_range.append((int(start_no), int(end_no)))
-                line_no += 1
-
         if comment_range and comment_range[0][0] == 1:
             del comment_range[0]
         return comment_range
@@ -292,7 +291,7 @@ class EccCheck(ICiBuildPlugin):
         report    = os.path.normpath(os.path.join(temp_path, "Ecc.csv"))
         for modify_dir in modify_dir_list:
             target = os.path.normpath(os.path.join(temp_path, modify_dir))
-            logging.info('Run ECC tool for the commit in %s' % modify_dir)
+            logging.info(f'Run ECC tool for the commit in {modify_dir}')
             ecc_need = True
             ecc_params = "-c {0} -e {1} -t {2} -r {3}".format(config, exception, target, report)
             return_code = RunCmd("Ecc", ecc_params, workingdir=temp_path)
@@ -317,25 +316,23 @@ class EccCheck(ICiBuildPlugin):
             with open(ecc_csv) as csv_file:
                 reader = csv.reader(csv_file)
                 for row in reader:
-                    for modify_file in ecc_diff_range:
+                    for modify_file, value in ecc_diff_range.items():
                         if modify_file in row[3]:
-                            for i in ecc_diff_range[modify_file]:
+                            for i in value:
                                 line_no = int(row[4])
                                 if i[0] <= line_no <= i[1] and row[1] not in ignore_error_code:
                                     row[0] = '\nEFI coding style error'
-                                    row[1] = 'Error code: ' + row[1]
-                                    row[3] = 'file: ' + row[3]
-                                    row[4] = 'Line number: ' + row[4]
-                                    row_line = '\n  *'.join(row)
-                                    row_lines.append(row_line)
+                                    row[1] = f'Error code: {row[1]}'
+                                    row[3] = f'file: {row[3]}'
+                                    row[4] = f'Line number: {row[4]}'
+                                    row_lines.append('\n  *'.join(row))
                                     break
                             break
         if row_lines:
             self.ECC_PASS = False
 
         with open(ecc_log, 'a') as log:
-            all_line = '\n'.join(row_lines)
-            all_line = all_line + '\n'
+            all_line = '\n'.join(row_lines) + '\n'
             log.writelines(all_line)
         return
 
@@ -391,24 +388,23 @@ class EccCheck(ICiBuildPlugin):
         But EccCheck plugin is partial scanning so they are always false positive issues.
         The mapping relationship of error code and error message is listed BaseTools/Sourc/Python/Ecc/EccToolError.py
         """
-        ignore_error_code = {
-                             "10000",
-                             "10001",
-                             "10002",
-                             "10003",
-                             "10004",
-                             "10005",
-                             "10006",
-                             "10007",
-                             "10008",
-                             "10009",
-                             "10010",
-                             "10011",
-                             "10012",
-                             "10013",
-                             "10015",
-                             "10016",
-                             "10017",
-                             "10022",
-                            }
-        return ignore_error_code
+        return {
+            "10000",
+            "10001",
+            "10002",
+            "10003",
+            "10004",
+            "10005",
+            "10006",
+            "10007",
+            "10008",
+            "10009",
+            "10010",
+            "10011",
+            "10012",
+            "10013",
+            "10015",
+            "10016",
+            "10017",
+            "10022",
+        }

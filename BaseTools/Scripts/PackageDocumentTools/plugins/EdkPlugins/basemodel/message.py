@@ -15,7 +15,7 @@ class EdkException(Exception):
         ErrorMsg(message, fName, fNo)
 
     def GetMessage(self):
-        return '[EDK Failure]: %s' %self._message
+        return f'[EDK Failure]: {self._message}'
 
 def ErrorMsg(mess, fName=None, fNo=None):
     GetEdkLogger().error(NormalMessage('#ERR#', mess, fName, fNo))
@@ -31,11 +31,7 @@ def NormalMessage(type, mess, fName=None, fNo=None):
 
     if fName is not None:
         strMsg += ' %s' % fName.replace('/', '\\')
-        if fNo is not None:
-            strMsg += '(%d):' % fNo
-        else:
-            strMsg += ' :'
-
+        strMsg += '(%d):' % fNo if fNo is not None else ' :'
     if fName is None and fNo is None:
         strMsg += ' '
     strMsg += mess

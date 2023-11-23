@@ -48,9 +48,7 @@ class DebugMacroCheckBuildPlugin(IUefiBuildPlugin):
             check either did not run or no errors were found.
         """
 
-        # Check if disabled in the environment
-        env_disable = builder.env.GetValue("DISABLE_DEBUG_MACRO_CHECK")
-        if env_disable:
+        if env_disable := builder.env.GetValue("DISABLE_DEBUG_MACRO_CHECK"):
             return 0
 
         # Only run on targets with compilation
@@ -91,25 +89,18 @@ class DebugMacroCheckBuildPlugin(IUefiBuildPlugin):
         # 1. Allow substitution data to be specified in a "DebugMacroCheck" of
         # the package CI YAML file. This is used to provide a familiar per-
         # package customization flow for a package maintainer.
-        package_config_file = Path(
-                                os.path.join(
-                                    package_path, package + ".ci.yaml"))
+        package_config_file = Path(os.path.join(package_path, f"{package}.ci.yaml"))
         if package_config_file.is_file():
             with open(package_config_file, 'r') as cf:
                 package_config_file_data = yaml.safe_load(cf)
                 if "DebugMacroCheck" in package_config_file_data and \
-                   "StringSubstitutions" in \
-                   package_config_file_data["DebugMacroCheck"]:
+                       "StringSubstitutions" in \
+                       package_config_file_data["DebugMacroCheck"]:
                     logging.info(f"Loading substitution data in "
                                  f"{str(package_config_file)}")
                     sub_data |= package_config_file_data["DebugMacroCheck"]["StringSubstitutions"] # noqa
 
-        # 2. Allow a substitution file to be specified as an environment
-        # variable. This is used to provide flexibility in how to specify a
-        # substitution file. The value can be set anywhere prior to this plugin
-        # getting called such as pre-existing build script.
-        sub_file = builder.env.GetValue("DEBUG_MACRO_CHECK_SUB_FILE")
-        if sub_file:
+        if sub_file := builder.env.GetValue("DEBUG_MACRO_CHECK_SUB_FILE"):
             logging.info(f"Loading substitution file {sub_file}")
             with open(sub_file, 'r') as sf:
                 sub_data |= yaml.safe_load(sf)

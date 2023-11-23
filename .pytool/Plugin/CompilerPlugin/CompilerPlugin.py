@@ -36,7 +36,7 @@ class CompilerPlugin(ICiBuildPlugin):
                 (testcasename, classname)
         """
         target = environment.GetValue("TARGET")
-        return ("Compile " + packagename + " " + target, packagename + ".Compiler." + target)
+        return f"Compile {packagename} {target}", f"{packagename}.Compiler.{target}"
 
     def RunsOnTargetList(self):
         return ["DEBUG", "RELEASE"]

@@ -117,7 +117,7 @@ def get_upstream(url, name):
         if (fuzzy_match_repo_url(upstream['repo'], url) or
                 upstream['name'] == name):
             return upstream
-    print("Unknown upstream '%s' - aborting!" % url)
+    print(f"Unknown upstream '{url}' - aborting!")
     sys.exit(3)
 
 
@@ -169,7 +169,7 @@ if __name__ == '__main__':
 
     UPSTREAM = get_upstream(URL, ARGS.name)
     if not UPSTREAM:
-        print("Upstream '%s' unknown, aborting!" % URL)
+        print(f"Upstream '{URL}' unknown, aborting!")
         sys.exit(7)
 
     # Set a list email address if our upstream wants it
@@ -202,17 +202,14 @@ if __name__ == '__main__':
         if exists:
             if value == entry['value']:
                 if ARGS.verbose:
-                    print("%s.%s already set (to '%s')" % (entry['section'],
-                                                           entry['option'], value))
+                    print(f"{entry['section']}.{entry['option']} already set (to '{value}')")
+            elif ARGS.force:
+                write_config_value(REPO, entry['section'], entry['option'], entry['value'])
             else:
-                if ARGS.force:
-                    write_config_value(REPO, entry['section'], entry['option'], entry['value'])
-                else:
-                    print("Not overwriting existing %s.%s value:" % (entry['section'],
-                                                                     entry['option']))
-                    print("  '%s' != '%s'" % (value, entry['value']))
-                    print("  add '-f' to command line to force overwriting existing settings")
+                print(f"Not overwriting existing {entry['section']}.{entry['option']} value:")
+                print(f"  '{value}' != '{entry['value']}'")
+                print("  add '-f' to command line to force overwriting existing settings")
         else:
-            print("%s.%s => '%s'" % (entry['section'], entry['option'], entry['value']))
+            print(f"{entry['section']}.{entry['option']} => '{entry['value']}'")
             if not ARGS.check:
                 write_config_value(REPO, entry['section'], entry['option'], entry['value'])

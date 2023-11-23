@@ -35,7 +35,10 @@ class DscCompleteCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Check the " + packagename + " DSC for a being complete", packagename + ".DscCompleteCheck")
+        return (
+            f"Check the {packagename} DSC for a being complete",
+            f"{packagename}.DscCompleteCheck",
+        )
 
     ##
     # External function of plugin.  This function is used to perform the task of the MuBuild Plugin
@@ -97,9 +100,11 @@ class DscCompleteCheck(ICiBuildPlugin):
 
         # Check if INF in component section
         for INF in INFFiles:
-            if not any(INF.strip() in x for x in dp.ThreeMods) and \
-               not any(INF.strip() in x for x in dp.SixMods) and \
-               not any(INF.strip() in x for x in dp.OtherMods):
+            if (
+                all(INF.strip() not in x for x in dp.ThreeMods)
+                and all(INF.strip() not in x for x in dp.SixMods)
+                and all(INF.strip() not in x for x in dp.OtherMods)
+            ):
 
                 infp = InfParser().SetBaseAbsPath(Edk2pathObj.WorkspacePath)
                 infp.SetPackagePaths(Edk2pathObj.PackagePathList)
@@ -115,12 +120,12 @@ class DscCompleteCheck(ICiBuildPlugin):
                     continue
 
                 if len(infp.SupportedPhases) == 1 and \
-                   "HOST_APPLICATION" in infp.SupportedPhases:
+                       "HOST_APPLICATION" in infp.SupportedPhases:
                     tc.LogStdOut(
                         "Ignoring Library INF due to only supporting type HOST_APPLICATION {0}".format(INF))
                     continue
 
-                logging.critical(INF + " not in " + wsr_dsc_path)
+                logging.critical(f"{INF} not in {wsr_dsc_path}")
                 tc.LogStdError("{0} not in {1}".format(INF, wsr_dsc_path))
                 overall_status = overall_status + 1
 

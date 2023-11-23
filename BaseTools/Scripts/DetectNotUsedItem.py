@@ -9,6 +9,7 @@
 '''
 DetectNotUsedItem
 '''
+
 import re
 import os
 import sys
@@ -18,7 +19,7 @@ import argparse
 # Globals for help information
 #
 __prog__ = 'DetectNotUsedItem'
-__version__ = '%s Version %s' % (__prog__, '0.1')
+__version__ = f'{__prog__} Version 0.1'
 __copyright__ = 'Copyright (c) 2019, Intel Corporation. All rights reserved.'
 __description__ = "Detect unreferenced PCD and GUID/Protocols/PPIs.\n"
 
@@ -44,15 +45,19 @@ class PROCESS(object):
         for path in self.InfPath:
             if type(ExtList) == type(''):
                 for root, _, files in os.walk(path, topdown=True, followlinks=False):
-                    for filename in files:
-                        if filename.endswith(ExtList):
-                            FileList.append(os.path.join(root, filename))
+                    FileList.extend(
+                        os.path.join(root, filename)
+                        for filename in files
+                        if filename.endswith(ExtList)
+                    )
             elif type(ExtList) == type([]):
                 for root, _, files in os.walk(path, topdown=True, followlinks=False):
                     for filename in files:
-                        for Ext in ExtList:
-                            if filename.endswith(Ext):
-                                FileList.append(os.path.join(root, filename))
+                        FileList.extend(
+                            os.path.join(root, filename)
+                            for Ext in ExtList
+                            if filename.endswith(Ext)
+                        )
         return FileList
 
     # Parse DEC file to get Line number and Name
@@ -72,17 +77,14 @@ class PROCESS(object):
                 if Flag:
                     Comment_Line.append(Index)
                     if NotComment:
-                        if content != "\n" and content != "\r\n":
+                        if content not in ["\n", "\r\n"]:
                             ItemName[Index] = content.split('=')[0].split('|')[0].split('#')[0].strip()
                             Comments[Index] = Comment_Line
                             Comment_Line = []
         return ItemName, Comments
 
     def IsNeedParseSection(self, SectionName):
-        for item in SectionList:
-            if item in SectionName:
-                return True
-        return False
+        return any(item in SectionName for item in SectionList)
 
     # Parse DSC, FDF, INF File, remove comments, return Lines list
     def ParseDscFdfInfContent(self, File):
@@ -103,12 +105,8 @@ class PROCESS(object):
         InfDscFdfContent = self.ParserDscFdfInfFile()
         for LineNum in list(DecItem.keys()):
             DecItemName = DecItem[LineNum]
-            Match_reg = re.compile("(?<![a-zA-Z0-9_-])%s(?![a-zA-Z0-9_-])" % DecItemName)
-            MatchFlag = False
-            for Line in InfDscFdfContent:
-                if Match_reg.search(Line):
-                    MatchFlag = True
-                    break
+            Match_reg = re.compile(f"(?<![a-zA-Z0-9_-]){DecItemName}(?![a-zA-Z0-9_-])")
+            MatchFlag = any(Match_reg.search(Line) for Line in InfDscFdfContent)
             if not MatchFlag:
                 NotUsedItem[LineNum] = DecItemName
         self.Display(NotUsedItem)
@@ -137,7 +135,7 @@ class PROCESS(object):
                         continue
                     else:
                         T.write(lines[linenum])
-            print("DEC File has been clean: %s" % (self.Dec))
+            print(f"DEC File has been clean: {self.Dec}")
         except Exception as err:
             print(err)
 
@@ -147,7 +145,7 @@ class Main(object):
     def mainprocess(self, Dec, Dirs, Isclean, LogPath):
         for dir in Dirs:
             if not os.path.exists(dir):
-                print("Error: Invalid path for '--dirs': %s" % dir)
+                print(f"Error: Invalid path for '--dirs': {dir}")
                 sys.exit(1)
         Pa = PROCESS(Dec, Dirs)
         unuse, comment = Pa.DetectNotUsedItem()
@@ -156,18 +154,19 @@ class Main(object):
         self.Logging(Pa.Log, LogPath)
 
     def Logging(self, content, LogPath):
-        if LogPath:
-            try:
-                if os.path.isdir(LogPath):
-                    FilePath = os.path.dirname(LogPath)
-                    if not os.path.exists(FilePath):
-                        os.makedirs(FilePath)
-                with open(LogPath, 'w+') as log:
-                    for line in content:
-                        log.write(line)
-                print("Log save to file: %s" % LogPath)
-            except Exception as e:
-                print("Save log Error: %s" % e)
+        if not LogPath:
+            return
+        try:
+            if os.path.isdir(LogPath):
+                FilePath = os.path.dirname(LogPath)
+                if not os.path.exists(FilePath):
+                    os.makedirs(FilePath)
+            with open(LogPath, 'w+') as log:
+                for line in content:
+                    log.write(line)
+            print(f"Log save to file: {LogPath}")
+        except Exception as e:
+            print(f"Save log Error: {e}")
 
 
 def main():
@@ -184,7 +183,7 @@ def main():
     options = parser.parse_args()
     if options.InputDec:
         if not (os.path.exists(options.InputDec) and options.InputDec.endswith(".dec")):
-            print("Error: Invalid DEC file input: %s" % options.InputDec)
+            print(f"Error: Invalid DEC file input: {options.InputDec}")
         if options.Dirs:
             M = Main()
             M.mainprocess(options.InputDec, options.Dirs, options.Clean, options.Logfile)

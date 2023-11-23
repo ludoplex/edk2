@@ -13,7 +13,8 @@ import argparse
 
 def Main():
     PARSER = argparse.ArgumentParser(
-        description='Retrieves UTC date and time information (output ordering: year, date, time) - Version ' + VersionNumber)
+        description=f'Retrieves UTC date and time information (output ordering: year, date, time) - Version {VersionNumber}'
+    )
     PARSER.add_argument('--year',
                         action='store_true',
                         help='Return UTC year of now. [Example output (2019): 39313032]')

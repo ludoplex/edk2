@@ -56,7 +56,7 @@ class SpellCheck(ICiBuildPlugin):
                 testclassname: a descriptive string for the testcase can include whitespace
                 classname: should be patterned <packagename>.<plugin>.<optionally any unique condition>
         """
-        return ("Spell check files in " + packagename, packagename + ".SpellCheck")
+        return f"Spell check files in {packagename}", f"{packagename}.SpellCheck"
 
     ##
     # External function of plugin.  This function is used to perform the task of the CiBuild Plugin
@@ -184,11 +184,13 @@ class SpellCheck(ICiBuildPlugin):
             tc.LogStdError(l.strip())
 
         # Helper - Log the syntax needed to add these words to dictionary
-        if len(EasyFix) > 0:
-            EasyFix = sorted(set(a.lower() for a in EasyFix))
+        if EasyFix:
+            EasyFix = sorted({a.lower() for a in EasyFix})
             tc.LogStdOut("\n Easy fix:")
-            OneString = "If these are not errors add this to your ci.yaml file.\n"
-            OneString += '"SpellCheck": {\n  "ExtendWords": ['
+            OneString = (
+                "If these are not errors add this to your ci.yaml file.\n"
+                + '"SpellCheck": {\n  "ExtendWords": ['
+            )
             for a in EasyFix:
                 tc.LogStdOut(f'\n"{a}",')
                 OneString += f'\n    "{a}",'
@@ -196,23 +198,19 @@ class SpellCheck(ICiBuildPlugin):
 
         # add result to test case
         overall_status = len(Errors)
-        if overall_status != 0:
-            if "AuditOnly" in pkgconfig and pkgconfig["AuditOnly"]:
-                # set as skipped if AuditOnly
-                tc.SetSkipped()
-                return -1
-            else:
-                tc.SetFailed("SpellCheck {0} Failed.  Errors {1}".format(
-                    packagename, overall_status), "CHECK_FAILED")
-        else:
+        if overall_status == 0:
             tc.SetSuccess()
+        elif "AuditOnly" in pkgconfig and pkgconfig["AuditOnly"]:
+            # set as skipped if AuditOnly
+            tc.SetSkipped()
+            return -1
+        else:
+            tc.SetFailed("SpellCheck {0} Failed.  Errors {1}".format(
+                packagename, overall_status), "CHECK_FAILED")
         return overall_status
 
     def _check_spelling(self, abs_file_to_check: str, abs_config_file_to_use: str) -> []:
         output = StringIO()
         ret = RunCmd(
             "cspell", f"--config {abs_config_file_to_use} {abs_file_to_check}", outstream=output)
-        if ret == 0:
-            return []
-        else:
-            return output.getvalue().strip().splitlines()
+        return [] if ret == 0 else output.getvalue().strip().splitlines()

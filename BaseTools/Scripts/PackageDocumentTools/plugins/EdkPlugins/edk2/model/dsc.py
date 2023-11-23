@@ -26,13 +26,15 @@ class DSCSection(ini.BaseINISection):
             return DSCLibraryClassObject(self)
         if type.lower() == 'defines':
             return ini.BaseINISectionObject(self)
-        if type.lower() == 'pcdsfeatureflag' or \
-           type.lower() == 'pcdsfixedatbuild' or \
-           type.lower() == 'pcdspatchableinmodule' or\
-           type.lower() == 'pcdsdynamicdefault' or \
-           type.lower() == 'pcdsdynamicex' or \
-           type.lower() == 'pcdsdynamichii' or \
-           type.lower() == 'pcdsdynamicvpd':
+        if type.lower() in [
+            'pcdsfeatureflag',
+            'pcdsfixedatbuild',
+            'pcdspatchableinmodule',
+            'pcdsdynamicdefault',
+            'pcdsdynamicex',
+            'pcdsdynamichii',
+            'pcdsdynamicvpd',
+        ]:
             return DSCPcdObject(self)
 
         return DSCSectionObject(self)
@@ -43,15 +45,11 @@ class DSCSection(ini.BaseINISection):
 
     def GetArch(self):
         arr = self._name.split('.')
-        if len(arr) == 1:
-            return 'common'
-        return arr[1]
+        return 'common' if len(arr) == 1 else arr[1]
 
     def GetModuleType(self):
         arr = self._name.split('.')
-        if len(arr) < 3:
-            return 'common'
-        return arr[2]
+        return 'common' if len(arr) < 3 else arr[2]
 
 class DSCSectionObject(ini.BaseINISectionObject):
     def GetArch(self):
@@ -147,7 +145,7 @@ class DSCComponentObject(DSCSectionObject):
                 if len(line) > 0 and line[0] != '#':
                     line = line.split('#')[0].strip()
                     if line[0] == '<':
-                        OverideName = line[1:len(line)-1]
+                        OverideName = line[1:-1]
                     elif OverideName.lower() == 'libraryclasses':
                         arr = line.split('|')
                         self._OverideLibraries[arr[0].strip()] = arr[1].strip()
@@ -160,13 +158,8 @@ class DSCComponentObject(DSCSectionObject):
 
     def GenerateLines(self):
         lines = []
-        hasLib = False
-        hasPcd = False
-        if len(self._OverideLibraries) != 0:
-            hasLib = True
-        if len(self._OveridePcds) != 0:
-            hasPcd = True
-
+        hasLib = len(self._OverideLibraries) != 0
+        hasPcd = len(self._OveridePcds) != 0
         if hasLib or hasPcd:
             lines.append(('  %s {\n' % self._Filename))
         else:
@@ -175,9 +168,10 @@ class DSCComponentObject(DSCSectionObject):
 
         if hasLib:
             lines.append('    <LibraryClasses>\n')
-            for libKey in self._OverideLibraries.keys():
-                lines.append('      %s|%s\n' % (libKey, self._OverideLibraries[libKey]))
-
+            lines.extend(
+                '      %s|%s\n' % (libKey, self._OverideLibraries[libKey])
+                for libKey in self._OverideLibraries.keys()
+            )
         if hasPcd:
             for key in self._OveridePcds.keys():
                 lines.append('    <%s>\n' % key)

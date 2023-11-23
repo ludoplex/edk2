@@ -34,9 +34,7 @@ class DECFile(ini.BaseINIFile):
             if not sect.IsArchMatch(arch):
                 continue
 
-            for obj in sect.GetObjects():
-                arr.append(obj)
-
+            arr.extend(iter(sect.GetObjects()))
         return arr
 
 class DECSection(ini.BaseINISection):
@@ -66,18 +64,13 @@ class DECSection(ini.BaseINISection):
 
     def GetArch(self):
         arr = self._name.split('.')
-        if len(arr) == 1:
-            return 'common'
-        return arr[1]
+        return 'common' if len(arr) == 1 else arr[1]
 
     def IsArchMatch(self, arch):
         if arch is None or self.GetArch() == 'common':
             return True
 
-        if self.GetArch().lower() != arch.lower():
-            return False
-
-        return True
+        return self.GetArch().lower() == arch.lower()
 
 class DECSectionObject(ini.BaseINISectionObject):
     def GetArch(self):

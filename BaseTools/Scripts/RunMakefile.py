@@ -9,6 +9,7 @@
 RunMakefile.py
 '''
 
+
 import os
 import sys
 import argparse
@@ -18,7 +19,7 @@ import subprocess
 # Globals for help information
 #
 __prog__        = 'RunMakefile'
-__version__     = '%s Version %s' % (__prog__, '1.0')
+__version__ = f'{__prog__} Version 1.0'
 __copyright__   = 'Copyright (c) 2017, Intel Corporation. All rights reserved.'
 __description__ = 'Run a makefile as part of a PREBUILD or POSTBUILD action.\n'
 
@@ -30,10 +31,10 @@ gArgs = None
 def Log(Message):
   if not gArgs.Verbose:
     return
-  sys.stdout.write (__prog__ + ': ' + Message + '\n')
+  sys.stdout.write(f'{__prog__}: {Message}' + '\n')
 
 def Error(Message, ExitValue=1):
-  sys.stderr.write (__prog__ + ': ERROR: ' + Message + '\n')
+  sys.stderr.write(f'{__prog__}: ERROR: {Message}' + '\n')
   sys.exit (ExitValue)
 
 def RelativePath(target):
@@ -128,29 +129,30 @@ if __name__ == '__main__':
     if os.path.exists (Makefile):
       break
   if not os.path.exists(Makefile):
-    Error ('makefile %s not found' % (gArgs.Makefile))
+    Error(f'makefile {gArgs.Makefile} not found')
 
   #
   # Build command line arguments converting build arguments to makefile defines
   #
-  CommandLine = [Makefile]
-  CommandLine.append('TARGET_ARCH="%s"' % (' '.join([Item[0] for Item in gArgs.Arch])))
-  CommandLine.append('TOOL_CHAIN_TAG="%s"' % (gArgs.ToolChain))
-  CommandLine.append('TARGET="%s"' % (gArgs.BuildTarget))
-  CommandLine.append('ACTIVE_PLATFORM="%s"' % (gArgs.PlatformFile))
-  CommandLine.append('CONF_DIRECTORY="%s"' % (gArgs.ConfDirectory))
+  CommandLine = [
+      Makefile,
+      f"""TARGET_ARCH="{' '.join([Item[0] for Item in gArgs.Arch])}\"""",
+      f'TOOL_CHAIN_TAG="{gArgs.ToolChain}"',
+      f'TARGET="{gArgs.BuildTarget}"',
+      f'ACTIVE_PLATFORM="{gArgs.PlatformFile}"',
+      f'CONF_DIRECTORY="{gArgs.ConfDirectory}"',
+  ]
   if gArgs.Define:
     for Item in gArgs.Define:
       if '=' not in Item[0]:
         continue
       Item = Item[0].split('=', 1)
-      CommandLine.append('%s="%s"' % (Item[0], Item[1]))
-  CommandLine.append('EXTRA_FLAGS="%s"' % (gArgs.Remaining))
-  CommandLine.append(gArgs.BuildType)
+      CommandLine.append(f'{Item[0]}="{Item[1]}"')
+  CommandLine.extend((f'EXTRA_FLAGS="{gArgs.Remaining}"', gArgs.BuildType))
   if sys.platform == "win32":
-    CommandLine = 'nmake /f %s' % (' '.join(CommandLine))
+    CommandLine = f"nmake /f {' '.join(CommandLine)}"
   else:
-    CommandLine = 'make -f %s' % (' '.join(CommandLine))
+    CommandLine = f"make -f {' '.join(CommandLine)}"
 
   #
   # Run the makefile

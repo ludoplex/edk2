@@ -63,10 +63,7 @@ class GitHelpers:
             return []
 
         rel_paths = out_stream_buffer.getvalue().strip().splitlines()
-        abs_paths = []
-        for path in rel_paths:
-            abs_paths.append(Path(directory_path, path))
-        return abs_paths
+        return [Path(directory_path, path) for path in rel_paths]
 
     @staticmethod
     def get_git_submodule_paths(directory_path: PurePath) -> List[Path]:
@@ -83,24 +80,21 @@ class GitHelpers:
         if not shutil.which("git"):
             return []
 
-        if os.path.isfile(directory_path.joinpath(".gitmodules")):
-            out_stream_buffer = StringIO()
-            exit_code = RunCmd(
-                "git", "config --file .gitmodules --get-regexp path",
-                workingdir=str(directory_path),
-                outstream=out_stream_buffer,
-                logging_level=logging.NOTSET)
-            if exit_code != 0:
-                return []
-
-            submodule_paths = []
-            for line in out_stream_buffer.getvalue().strip().splitlines():
-                submodule_paths.append(
-                    Path(directory_path, line.split()[1]))
-
-            return submodule_paths
-        else:
+        if not os.path.isfile(directory_path.joinpath(".gitmodules")):
             return []
+        out_stream_buffer = StringIO()
+        exit_code = RunCmd(
+            "git", "config --file .gitmodules --get-regexp path",
+            workingdir=str(directory_path),
+            outstream=out_stream_buffer,
+            logging_level=logging.NOTSET)
+        if exit_code != 0:
+            return []
+
+        return [
+            Path(directory_path, line.split()[1])
+            for line in out_stream_buffer.getvalue().strip().splitlines()
+        ]
 
 
 class QuietFilter(logging.Filter):
@@ -205,7 +199,7 @@ def check_debug_macros(macros: Iterable[Dict[str, str]],
 
         # Make any macro substitutions so further processing is applied
         # to the substituted value.
-        for k in macro_subs.keys():
+        for k in macro_subs:
             processed_dbg_str = processed_dbg_str.replace(k, macro_subs[k])
 
         logging.debug("Debug macro string after replacements: "
@@ -249,7 +243,7 @@ def check_debug_macros(macros: Iterable[Dict[str, str]],
             processed_arg_str = macro['dbg_args'].strip()
 
         argument_other_replacements = ['\r', '\n']
-        for r in argument_other_replacements:
+        for _ in argument_other_replacements:
             if s in processed_arg_str:
                 processed_arg_str = processed_arg_str.replace(s, '')
         processed_arg_str = re.sub(r'  +', ' ', processed_arg_str)
@@ -812,31 +806,30 @@ def _module_invocation_check_macros_in_directory_wrapper() -> int:
                     not args.no_progress_bar,
                     args.utf8w,
                     **substitution_data)
-    else:
-        curr_dir = Path(__file__).parent
-        input_file = Path(args.input_file)
+    curr_dir = Path(__file__).parent
+    input_file = Path(args.input_file)
 
-        rel_path = str(input_file)
-        if input_file.is_relative_to(curr_dir):
-            rel_path = str(input_file.relative_to(curr_dir))
+    rel_path = str(input_file)
+    if input_file.is_relative_to(curr_dir):
+        rel_path = str(input_file.relative_to(curr_dir))
 
-        logging.info(f"Checking Debug Macros in File: "
-                     f"{input_file.resolve()}\n")
+    logging.info(f"Checking Debug Macros in File: "
+                 f"{input_file.resolve()}\n")
 
-        start_time = timeit.default_timer()
-        failure_cnt = check_macros_in_file(
-                        input_file,
-                        rel_path,
-                        args.utf8w,
-                        **substitution_data)[0]
-        end_time = timeit.default_timer() - start_time
+    start_time = timeit.default_timer()
+    failure_cnt = check_macros_in_file(
+                    input_file,
+                    rel_path,
+                    args.utf8w,
+                    **substitution_data)[0]
+    end_time = timeit.default_timer() - start_time
 
-        logging.debug(f"[PERF] The file macro check operation took "
-                      f"{end_time:.2f} seconds.")
+    logging.debug(f"[PERF] The file macro check operation took "
+                  f"{end_time:.2f} seconds.")
 
-        _log_failure_count(failure_cnt, 1)
+    _log_failure_count(failure_cnt, 1)
 
-        return failure_cnt
+    return failure_cnt
 
 
 if __name__ == '__main__':

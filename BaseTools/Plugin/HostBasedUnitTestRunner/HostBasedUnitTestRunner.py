@@ -48,14 +48,15 @@ class HostBasedUnitTestRunner(IUefiBuildPlugin):
                     "Run Host based Unit Tests")
         path = thebuilder.env.GetValue("BUILD_OUTPUT_BASE")
 
-        failure_count = 0
-
         # Set up the reporting type for Cmocka.
         shell_env.set_shell_var('CMOCKA_MESSAGE_OUTPUT', 'xml')
 
+        failure_count = 0
         for arch in thebuilder.env.GetValue("TARGET_ARCH").split():
-            logging.log(edk2_logging.get_subsection_level(),
-                        "Testing for architecture: " + arch)
+            logging.log(
+                edk2_logging.get_subsection_level(),
+                f"Testing for architecture: {arch}",
+            )
             cp = os.path.join(path, arch)
 
             # If any old results XML files exist, clean them up.
@@ -100,20 +101,18 @@ class HostBasedUnitTestRunner(IUefiBuildPlugin):
             for test in testList:
                 # Configure output name if test uses cmocka.
                 shell_env.set_shell_var(
-                    'CMOCKA_XML_FILE', test + ".CMOCKA.%g." + arch + ".result.xml")
+                    'CMOCKA_XML_FILE', f"{test}.CMOCKA.%g.{arch}.result.xml"
+                )
                 # Configure output name if test uses gtest.
-                shell_env.set_shell_var(
-                    'GTEST_OUTPUT', "xml:" + test + ".GTEST." + arch + ".result.xml")
+                shell_env.set_shell_var('GTEST_OUTPUT', f"xml:{test}.GTEST.{arch}.result.xml")
 
                 # Run the test.
-                ret = RunCmd('"' + test + '"', "", workingdir=cp)
+                ret = RunCmd(f'"{test}"', "", workingdir=cp)
                 if ret != 0:
-                    logging.error("UnitTest Execution Error: " +
-                                  os.path.basename(test))
+                    logging.error(f"UnitTest Execution Error: {os.path.basename(test)}")
                 else:
-                    logging.info("UnitTest Completed: " +
-                                 os.path.basename(test))
-                    file_match_pattern = test + ".*." + arch + ".result.xml"
+                    logging.info(f"UnitTest Completed: {os.path.basename(test)}")
+                    file_match_pattern = f"{test}.*.{arch}.result.xml"
                     xml_results_list = glob.glob(file_match_pattern)
                     for xml_result_file in xml_results_list:
                         root = xml.etree.ElementTree.parse(
@@ -122,10 +121,8 @@ class HostBasedUnitTestRunner(IUefiBuildPlugin):
                             for case in suite:
                                 for result in case:
                                     if result.tag == 'failure':
-                                        logging.warning(
-                                            "%s Test Failed" % os.path.basename(test))
-                                        logging.warning(
-                                            "  %s - %s" % (case.attrib['name'], result.text))
+                                        logging.warning(f"{os.path.basename(test)} Test Failed")
+                                        logging.warning(f"  {case.attrib['name']} - {result.text}")
                                         failure_count += 1
 
             if thebuilder.env.GetValue("CODE_COVERAGE") != "FALSE":
@@ -181,9 +178,9 @@ class HostBasedUnitTestRunner(IUefiBuildPlugin):
         # Generate all coverage file
         testCoverageList = glob.glob (f"{workspace}/Build/**/total-coverage.info", recursive=True)
 
-        coverageFile = ""
-        for testCoverage in testCoverageList:
-            coverageFile += " --add-tracefile " + testCoverage
+        coverageFile = "".join(
+            f" --add-tracefile {testCoverage}" for testCoverage in testCoverageList
+        )
         ret = RunCmd("lcov", f"{coverageFile} --output-file {workspace}/Build/all-coverage.info --rc lcov_branch_coverage=1")
         if ret != 0:
             logging.error("UnitTest Coverage: Failed generate all coverage file.")
